@@ -41,6 +41,22 @@ export default function BillSummaryScreen() {
                     setTrip(foundTrip);
                     const foundBill = foundTrip.bills.find(b => b.id === billId);
                     if (foundBill) {
+                        // Parse date strings back to Date objects
+                        foundBill.createdAt = new Date(foundBill.createdAt);
+
+                        // Parse dates in receipt photos
+                        if (foundBill.receiptPhotos && Array.isArray(foundBill.receiptPhotos)) {
+                            foundBill.receiptPhotos = foundBill.receiptPhotos.map(photo => ({
+                                ...photo,
+                                uploadedAt: new Date(photo.uploadedAt)
+                            }));
+                            console.log('Loaded bill with photos:', {
+                                billId: foundBill.id,
+                                photoCount: foundBill.receiptPhotos.length,
+                                photoUris: foundBill.receiptPhotos.map(p => p.uri)
+                            });
+                        }
+
                         setBill(foundBill);
                         calculatePaymentSummary(foundTrip, foundBill);
                     }
