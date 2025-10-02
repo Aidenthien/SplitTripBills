@@ -13,11 +13,11 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
 
 import { Text, View } from '@/components/Themed';
-import { Trip, Bill, BillSplit, BillCategory } from '@/types';
+import { Trip, Bill, BillSplit, BillCategory, ReceiptPhoto } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import { CategoryDropdown } from '@/ui/components';
+import { CategoryDropdown, ReceiptPhotoUpload } from '@/ui/components';
 import { BILL_CATEGORIES, getDefaultCategory } from '@/constants/BillCategories';
 
 export default function CreateBillScreen() {
@@ -25,6 +25,7 @@ export default function CreateBillScreen() {
     const [trip, setTrip] = useState<Trip | null>(null);
     const [description, setDescription] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<BillCategory>(getDefaultCategory());
+    const [receiptPhotos, setReceiptPhotos] = useState<ReceiptPhoto[]>([]);
     const [totalAmount, setTotalAmount] = useState('');
     const [payerId, setPayerId] = useState('');
     const [travelerAmounts, setTravelerAmounts] = useState<{ [key: string]: string }>({});
@@ -128,6 +129,7 @@ export default function CreateBillScreen() {
                         totalAmount: billTotal,
                         payerId,
                         splits,
+                        receiptPhotos: receiptPhotos.length > 0 ? receiptPhotos : undefined,
                         createdAt: new Date(),
                     };
 
@@ -292,6 +294,14 @@ export default function CreateBillScreen() {
                                 </View>
                             );
                         })}
+                    </View>
+
+                    <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                        <ReceiptPhotoUpload
+                            photos={receiptPhotos}
+                            onPhotosChange={setReceiptPhotos}
+                            maxPhotos={3}
+                        />
                     </View>
 
                     <TouchableOpacity style={styles.createButton} onPress={createBill}>

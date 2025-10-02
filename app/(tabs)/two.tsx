@@ -65,7 +65,13 @@ export default function HistoryScreen() {
             {item.targetCurrency}{item.bill.totalAmount.toFixed(2)}
           </Text>
           <Text style={styles.billDate}>
-            {new Date(item.bill.createdAt).toLocaleDateString()}
+            {new Date(item.bill.createdAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
           </Text>
         </View>
       </View>

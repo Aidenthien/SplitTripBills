@@ -16,6 +16,15 @@ export interface BillCategory {
     color: string; // Theme color
 }
 
+export interface ReceiptPhoto {
+    id: string;
+    uri: string; // Local file URI
+    name: string; // Original filename
+    size: number; // File size in bytes
+    type: string; // MIME type
+    uploadedAt: Date;
+}
+
 export interface Trip {
     id: string;
     name: string;
@@ -35,6 +44,7 @@ export interface Bill {
     totalAmount: number; // In target currency
     payerId: string; // Who paid originally
     splits: BillSplit[];
+    receiptPhotos?: ReceiptPhoto[]; // Optional receipt attachments
     createdAt: Date;
 }
 

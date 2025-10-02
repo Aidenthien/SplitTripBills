@@ -9,3 +9,4 @@ export * from './NotificationContainer';
 export * from './ValidationMessage';
 export * from './ConfirmationDialog';
 export { default as CategoryDropdown } from './CategoryDropdown';
+export { default as ReceiptPhotoUpload } from './ReceiptPhotoUpload';

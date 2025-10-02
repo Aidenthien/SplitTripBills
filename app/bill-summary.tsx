@@ -6,6 +6,8 @@ import {
     SafeAreaView,
     KeyboardAvoidingView,
     Platform,
+    Image,
+    Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +23,8 @@ export default function BillSummaryScreen() {
     const [trip, setTrip] = useState<Trip | null>(null);
     const [bill, setBill] = useState<Bill | null>(null);
     const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
+    const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
+    const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
     const colorScheme = useColorScheme();
 
     useEffect(() => {
@@ -74,6 +78,16 @@ export default function BillSummaryScreen() {
         router.back();
     };
 
+    const openPhotoModal = (photoUri: string) => {
+        setSelectedPhotoUri(photoUri);
+        setIsPhotoModalVisible(true);
+    };
+
+    const closePhotoModal = () => {
+        setIsPhotoModalVisible(false);
+        setSelectedPhotoUri(null);
+    };
+
     if (!trip || !bill) {
         return (
             <View style={styles.loadingContainer}>
@@ -115,6 +129,42 @@ export default function BillSummaryScreen() {
                             })}
                         </Text>
                     </View>
+
+                    {/* Receipt Photos */}
+                    {bill.receiptPhotos && bill.receiptPhotos.length > 0 && (
+                        <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                            <View style={styles.sectionHeaderWithIcon}>
+                                <FontAwesome name="camera" size={20} color="#007AFF" style={{ marginRight: 8 }} />
+                                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Receipt Photos ({bill.receiptPhotos.length})</Text>
+                            </View>
+                            <Text style={styles.sectionSubtitle}>Tap to view full size</Text>
+                            <View style={styles.receiptPhotosGrid}>
+                                {bill.receiptPhotos.map((photo, index) => (
+                                    <TouchableOpacity
+                                        key={photo.id}
+                                        style={styles.receiptPhotoCard}
+                                        onPress={() => openPhotoModal(photo.uri)}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Image source={{ uri: photo.uri }} style={styles.receiptPhotoLarge} />
+                                        <View style={styles.receiptPhotoOverlay}>
+                                            <View style={styles.receiptPhotoNumber}>
+                                                <Text style={styles.receiptPhotoNumberText}>{index + 1}</Text>
+                                            </View>
+                                            <View style={styles.receiptPhotoInfo}>
+                                                <Text style={styles.receiptPhotoTime}>
+                                                    {new Date(photo.uploadedAt).toLocaleTimeString([], {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    )}
 
                     {/* Bill Summary */}
                     <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
@@ -250,6 +300,43 @@ export default function BillSummaryScreen() {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Photo Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={isPhotoModalVisible}
+                onRequestClose={closePhotoModal}
+                statusBarTranslucent={true}
+            >
+                <View style={styles.photoModalOverlay}>
+                    <TouchableOpacity
+                        style={styles.photoModalClose}
+                        onPress={closePhotoModal}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.closeButtonContainer}>
+                            <FontAwesome name="times" size={24} color="white" />
+                        </View>
+                    </TouchableOpacity>
+
+                    {selectedPhotoUri && (
+                        <View style={styles.photoModalContent}>
+                            <Image
+                                source={{ uri: selectedPhotoUri }}
+                                style={styles.fullSizePhoto}
+                                resizeMode="contain"
+                            />
+                        </View>
+                    )}
+
+                    <TouchableOpacity
+                        style={styles.photoModalBackground}
+                        onPress={closePhotoModal}
+                        activeOpacity={1}
+                    />
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -549,5 +636,154 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginLeft: 8,
+    },
+
+    // Receipt Photos Styles
+    photosContainer: {
+        marginTop: 12,
+    },
+
+    photosContent: {
+        paddingHorizontal: 4,
+    },
+
+    photoThumbnailContainer: {
+        marginRight: 12,
+        position: 'relative',
+    },
+
+    receiptThumbnail: {
+        width: 80,
+        height: 80,
+        borderRadius: 8,
+        backgroundColor: '#f5f5f5',
+    },
+
+    photoNumber: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        minWidth: 20,
+        textAlign: 'center',
+    },
+
+    // Enhanced Receipt Photos Styles
+    receiptPhotosGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop: 12,
+    },
+
+    receiptPhotoCard: {
+        flex: 1,
+        minWidth: '45%',
+        maxWidth: '48%',
+        position: 'relative',
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#f8f9fa',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+    },
+
+    receiptPhotoLarge: {
+        width: '100%',
+        aspectRatio: 4 / 3,
+        backgroundColor: '#f5f5f5',
+    },
+
+    receiptPhotoOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'space-between',
+        padding: 8,
+    },
+
+    receiptPhotoNumber: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(0, 122, 255, 0.9)',
+        borderRadius: 12,
+        minWidth: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    receiptPhotoNumberText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+
+    receiptPhotoInfo: {
+        alignSelf: 'flex-end',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+
+    receiptPhotoTime: {
+        color: 'white',
+        fontSize: 11,
+        fontWeight: '500',
+    },
+
+    // Photo Modal Styles
+    photoModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    photoModalClose: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        zIndex: 1000,
+    },
+
+    closeButtonContainer: {
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        borderRadius: 20,
+        padding: 10,
+    },
+
+    photoModalContent: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+
+    fullSizePhoto: {
+        width: '100%',
+        height: '80%',
+        maxWidth: 400,
+        maxHeight: 600,
+    },
+
+    photoModalBackground: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: -1,
     },
 });
