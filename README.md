@@ -22,66 +22,6 @@ This project follows a **clean architecture** with proper separation of concerns
 └── constants/            # App constants
 ```
 
-### **Design System Structure**
-- **`design/theme/colors.ts`** - Comprehensive color palette with light/dark themes
-- **`design/theme/typography.ts`** - Typography scale and text styles
-- **`design/theme/spacing.ts`** - Consistent spacing, shadows, and layout constants
-- **`design/theme/index.ts`** - Main theme export and utilities
-
-### **UI Components Structure**
-- **`ui/components/Button/`** - Themeable button component with variants
-- **`ui/components/Card/`** - Card component with elevation and padding options
-- **`ui/components/Input/`** - Smart input with validation and auto-scroll
-- **`ui/components/Screen/`** - Screen wrapper with keyboard handling
-
-### **Business Logic Structure**
-- **`components/providers/TripProvider.tsx`** - Trip data management context
-- **`components/hooks/useBillCalculations.ts`** - Bill calculation logic
-- **`components/hooks/useFormValidation.ts`** - Form validation utilities
-
-### **Utilities Structure**
-- **`utils/currency.ts`** - Currency formatting and conversion utilities
-- **`utils/date.ts`** - Date formatting and manipulation utilities
-- **`utils/validation.ts`** - Form validation rules and helpers
-- **`utils/helpers.ts`** - General utility functions
-
-## 📁 **File Organization Principles**
-
-### **1. Separation of Concerns**
-- **Design**: Pure design tokens and theme definitions
-- **UI**: Presentation components with no business logic
-- **Business**: Data management and business rules
-- **Screens**: Composition of UI components with business logic
-- **Utils**: Pure functions and utilities
-
-### **2. Co-location**
-- Related files are grouped together (component + styles + types)
-- Each component has its own folder with index.ts for clean imports
-- Styles are separated into `.styles.ts` files
-
-### **3. Clean Imports**
-```typescript
-// ✅ Good - Clean imports
-import { Button, Card, Input } from '@/ui/components';
-import { useTripContext } from '@/components/business';
-import { formatCurrency } from '@/utils';
-
-// ❌ Bad - Direct file imports
-import Button from '@/ui/components/Button/Button';
-import { useTripContext } from '@/components/providers/TripProvider';
-```
-
-### **4. Style Separation**
-```typescript
-// Component file (MyComponent.tsx)
-import { createMyComponentStyles } from './MyComponent.styles';
-
-// Styles file (MyComponent.styles.ts)
-export const createMyComponentStyles = (theme: Theme) => StyleSheet.create({
-  // styles here
-});
-```
-
 ## Project Overview
 
 SplitTripBills is designed to simplify the process of splitting travel expenses among friends while handling currency conversions automatically. The app allows users to create trip rooms, set up currency exchange rates, and split bills with automatic MYR (Malaysian Ringgit) conversions.
@@ -282,17 +222,6 @@ constants/
 └── Currencies.ts         # Currency definitions
 ```
 
-### Data Models
-- **Trip**: Contains travelers, currencies, exchange rate, and bills
-- **Bill**: Contains splits, payer information, and amounts
-- **Traveler**: Basic user information for trip participants
-- **Currency**: Currency definitions with symbols and names
-
-### Storage Strategy
-- All data is stored locally using AsyncStorage
-- Data persists between app sessions
-- No cloud synchronization (future enhancement opportunity)
-
 ## Future Enhancements
 
 ### Planned Features
@@ -310,37 +239,8 @@ constants/
 4. **User authentication** and profile management
 5. **Performance optimizations** for large datasets
 
-## Contributing
-
-### Development Guidelines
-1. Follow TypeScript best practices
-2. Maintain consistent code formatting
-3. Add proper error handling for all async operations
-4. Update documentation for new features
-5. Test on both iOS and Android platforms
-
-### Code Style
-- Use meaningful variable and function names
-- Add comments for complex business logic
-- Follow React Native performance best practices
-- Implement proper error boundaries
-
-## Support
-
-### Getting Help
-- Check the troubleshooting section above
-- Review the usage instructions
-- Test with the provided sample data flow
-
 ### Known Limitations
 - Data is stored locally only (no cloud backup)
 - Exchange rates must be entered manually
 - Limited to 10 predefined currencies
 - No receipt photo storage
-
----
-
-**Version**: 1.0.0  
-**Last Updated**: October 2025  
-**Platform**: React Native (iOS/Android)  
-**License**: MIT
