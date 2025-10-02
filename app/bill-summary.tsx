@@ -97,8 +97,13 @@ export default function BillSummaryScreen() {
                     {/* Bill Header */}
                     <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
                         <View style={styles.billHeader}>
-                            <FontAwesome name="file-text" size={24} color="#007AFF" />
-                            <Text style={styles.billTitle}>{bill.description}</Text>
+                            <View style={[styles.categoryIcon, { backgroundColor: bill.category.color + '20' }]}>
+                                <FontAwesome name={bill.category.icon as any} size={20} color={bill.category.color} />
+                            </View>
+                            <View style={styles.billTitleContainer}>
+                                <Text style={styles.billTitle}>{bill.description}</Text>
+                                <Text style={styles.billCategoryText}>{bill.category.name}</Text>
+                            </View>
                         </View>
                         <Text style={styles.billDate}>
                             {new Date(bill.createdAt).toLocaleDateString('en-US', {
@@ -283,8 +288,23 @@ const styles = StyleSheet.create({
     billTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        marginLeft: 12,
         flex: 1,
+    },
+    categoryIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    billTitleContainer: {
+        flex: 1,
+    },
+    billCategoryText: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 2,
     },
     billDate: {
         fontSize: 14,

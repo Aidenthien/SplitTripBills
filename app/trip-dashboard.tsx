@@ -5,7 +5,7 @@ import {
     TouchableOpacity,
     SafeAreaView,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
 import { Text, View } from '@/components/Themed';
@@ -22,6 +22,13 @@ export default function TripDashboardScreen() {
     useEffect(() => {
         loadTrip();
     }, [tripId]);
+
+    // Refresh data when screen comes into focus (e.g., after creating a bill)
+    useFocusEffect(
+        React.useCallback(() => {
+            loadTrip();
+        }, [tripId])
+    );
 
     const loadTrip = async () => {
         try {
@@ -67,12 +74,24 @@ export default function TripDashboardScreen() {
                 onPress={() => viewBill(item)}
             >
                 <View style={styles.billInfo}>
-                    <Text style={styles.billDescription}>{item.description}</Text>
+                    <View style={styles.billHeader}>
+                        <View style={[styles.categoryIconSmall, { backgroundColor: item.category.color + '20' }]}>
+                            <FontAwesome name={item.category.icon as any} size={14} color={item.category.color} />
+                        </View>
+                        <Text style={styles.billDescription}>{item.description}</Text>
+                    </View>
+                    <Text style={styles.billCategory}>{item.category.name}</Text>
                     <Text style={styles.billAmount}>
                         Total: {trip?.targetCurrency.symbol}{item.totalAmount.toFixed(2)}
                     </Text>
                     <Text style={styles.billDate}>
-                        {new Date(item.createdAt).toLocaleDateString()}
+                        {new Date(item.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
                     </Text>
                 </View>
                 <FontAwesome name="chevron-right" size={16} color="#666" />
@@ -206,9 +225,27 @@ const styles = StyleSheet.create({
     billInfo: {
         flex: 1,
     },
+    billHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    categoryIconSmall: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
     billDescription: {
         fontSize: 16,
         fontWeight: '600',
+        flex: 1,
+    },
+    billCategory: {
+        fontSize: 12,
+        color: '#888',
         marginBottom: 4,
     },
     billAmount: {

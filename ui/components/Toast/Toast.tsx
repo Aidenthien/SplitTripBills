@@ -47,6 +47,9 @@ export default function Toast({ notification, onDismiss }: ToastProps) {
     const translateY = useRef(new Animated.Value(-200)).current;
     const opacity = useRef(new Animated.Value(0)).current;
     const scale = useRef(new Animated.Value(0.9)).current;
+    const progressWidth = useRef(new Animated.Value(1)).current; // Progress bar animation
+
+    const TOAST_DURATION = 3500; // 3.5 seconds
 
     useEffect(() => {
         // Native haptic feedback
@@ -87,14 +90,28 @@ export default function Toast({ notification, onDismiss }: ToastProps) {
             }),
         ]).start();
 
+        // Start progress bar animation after slide-in completes
+        const progressTimer = setTimeout(() => {
+            Animated.timing(progressWidth, {
+                toValue: 0,
+                duration: TOAST_DURATION,
+                useNativeDriver: false, // width animation requires useNativeDriver: false
+            }).start();
+        }, 300); // Start after slide-in animation
+
         // Auto-dismiss timer (if no actions)
         if (!notification.actions || notification.actions.length === 0) {
-            const timer = setTimeout(() => {
+            const dismissTimer = setTimeout(() => {
                 handleDismiss();
-            }, notification.duration || 4000);
+            }, TOAST_DURATION + 300); // Add slide-in delay
 
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(progressTimer);
+                clearTimeout(dismissTimer);
+            };
         }
+
+        return () => clearTimeout(progressTimer);
     }, []);
 
     const handleDismiss = () => {
@@ -154,6 +171,21 @@ export default function Toast({ notification, onDismiss }: ToastProps) {
     const getIconColor = () => {
         // Use white icons on colored backgrounds for better contrast
         return '#FFFFFF';
+    };
+
+    const getProgressBarColor = () => {
+        switch (notification.type) {
+            case 'success':
+                return theme.colors.success;
+            case 'error':
+                return theme.colors.error;
+            case 'warning':
+                return theme.colors.warning;
+            case 'info':
+                return theme.colors.info;
+            default:
+                return theme.colors.primary;
+        }
     };
 
     return (
@@ -220,6 +252,24 @@ export default function Toast({ notification, onDismiss }: ToastProps) {
                             </Text>
                         </TouchableOpacity>
                     ))}
+                </View>
+            )}
+
+            {/* Progress Bar */}
+            {(!notification.actions || notification.actions.length === 0) && (
+                <View style={styles.progressContainer}>
+                    <Animated.View
+                        style={[
+                            styles.progressBar,
+                            {
+                                backgroundColor: getProgressBarColor(),
+                                width: progressWidth.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: ['0%', '100%'],
+                                }),
+                            },
+                        ]}
+                    />
                 </View>
             )}
         </Animated.View>

@@ -157,7 +157,7 @@ The app uses Malaysian Ringgit (MYR) as the default base currency. To modify thi
 
 1. **Add travelers** by entering names and tapping the \"+\" button
 2. **Select target currency** from the dropdown (base currency is MYR)
-3. **Enter exchange rate** (e.g., 331.65 for Korean Won)
+3. **Enter exchange rate** (e.g., 300 for Korean Won)
 4. **Tap \"Save & Continue\"** to access the trip dashboard
 
 ### Creating Split Bills

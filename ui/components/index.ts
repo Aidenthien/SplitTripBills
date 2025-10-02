@@ -8,3 +8,4 @@ export * from './Toast';
 export * from './NotificationContainer';
 export * from './ValidationMessage';
 export * from './ConfirmationDialog';
+export { default as CategoryDropdown } from './CategoryDropdown';

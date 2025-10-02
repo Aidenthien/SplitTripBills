@@ -247,6 +247,20 @@ export default function TripRoomsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <ConfirmationDialog
+        visible={deleteDialogVisible}
+        title="Delete Trip"
+        message={`Are you sure you want to delete this trip? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="destructive"
+        onConfirm={deleteTrip}
+        onCancel={() => {
+          setDeleteDialogVisible(false);
+          setTripToDelete(null);
+        }}
+      />
     </SafeAreaView>
   );
 }

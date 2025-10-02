@@ -135,4 +135,19 @@ export const createToastStyles = (theme: Theme) =>
         infoIcon: {
             backgroundColor: theme.colors.infoLight,
         },
+
+        // Progress bar styles
+        progressContainer: {
+            height: 3,
+            backgroundColor: theme.colors.surface,
+            borderBottomLeftRadius: theme.borderRadius.lg,
+            borderBottomRightRadius: theme.borderRadius.lg,
+            overflow: 'hidden',
+        },
+
+        progressBar: {
+            height: '100%',
+            borderBottomLeftRadius: theme.borderRadius.lg,
+            borderBottomRightRadius: theme.borderRadius.lg,
+        },
     });

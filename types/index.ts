@@ -9,6 +9,13 @@ export interface Currency {
     symbol: string;
 }
 
+export interface BillCategory {
+    id: string;
+    name: string;
+    icon: string; // FontAwesome icon name
+    color: string; // Theme color
+}
+
 export interface Trip {
     id: string;
     name: string;
@@ -24,6 +31,7 @@ export interface Bill {
     id: string;
     tripId: string;
     description: string;
+    category: BillCategory;
     totalAmount: number; // In target currency
     payerId: string; // Who paid originally
     splits: BillSplit[];

@@ -13,15 +13,18 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
 
 import { Text, View } from '@/components/Themed';
-import { Trip, Bill, BillSplit } from '@/types';
+import { Trip, Bill, BillSplit, BillCategory } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { CategoryDropdown } from '@/ui/components';
+import { BILL_CATEGORIES, getDefaultCategory } from '@/constants/BillCategories';
 
 export default function CreateBillScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
     const [trip, setTrip] = useState<Trip | null>(null);
     const [description, setDescription] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<BillCategory>(getDefaultCategory());
     const [totalAmount, setTotalAmount] = useState('');
     const [payerId, setPayerId] = useState('');
     const [travelerAmounts, setTravelerAmounts] = useState<{ [key: string]: string }>({});
@@ -121,6 +124,7 @@ export default function CreateBillScreen() {
                         id: Date.now().toString(),
                         tripId: tripId!,
                         description: description.trim(),
+                        category: selectedCategory,
                         totalAmount: billTotal,
                         payerId,
                         splits,
@@ -132,13 +136,8 @@ export default function CreateBillScreen() {
 
                     showSuccess('Bill created successfully!');
 
-                    router.push({
-                        pathname: '/bill-summary',
-                        params: {
-                            tripId,
-                            billId: newBill.id
-                        }
-                    });
+                    // Navigate back to dashboard following navigation best practices
+                    router.back();
                 }
             }
         } catch (error) {
@@ -186,7 +185,7 @@ export default function CreateBillScreen() {
                     <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
                         <Text style={styles.sectionTitle}>Bill Details</Text>
 
-                        <Text style={styles.label}>Description</Text>
+                        <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>Description</Text>
                         <TextInput
                             style={[
                                 styles.input,
@@ -201,7 +200,15 @@ export default function CreateBillScreen() {
                             onChangeText={setDescription}
                         />
 
-                        <Text style={styles.label}>Total Amount ({trip.targetCurrency.code})</Text>
+                        <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>Category</Text>
+                        <CategoryDropdown
+                            selectedCategory={selectedCategory}
+                            categories={BILL_CATEGORIES}
+                            onSelectCategory={setSelectedCategory}
+                            placeholder="Select category"
+                        />
+
+                        <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>Total Amount ({trip.targetCurrency.code})</Text>
                         <TextInput
                             style={[
                                 styles.input,
@@ -260,7 +267,7 @@ export default function CreateBillScreen() {
 
                         {trip.travelers.map((traveler) => {
                             const amount = travelerAmounts[traveler.id] || '';
-                            const amountMYR = amount ? (parseFloat(amount) / trip.exchangeRate).toFixed(2) : '0.00';
+                            const amountMYR = amount ? (parseFloat(amount) / trip.exchangeRate).toFixed(3) : '0.000';
 
                             return (
                                 <View key={traveler.id} style={styles.travelerAmountContainer}>
