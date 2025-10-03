@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import {
     StyleSheet,
     ScrollView,
@@ -10,7 +10,7 @@ import {
     Modal,
     ActivityIndicator,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -18,9 +18,11 @@ import { Text, View } from '@/components/Themed';
 import { Trip, Bill, PaymentSummary } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { BillShareButton } from '@/ui/components';
 
 export default function BillSummaryScreen() {
     const { tripId, billId } = useLocalSearchParams<{ tripId: string; billId: string }>();
+    const navigation = useNavigation();
     const [trip, setTrip] = useState<Trip | null>(null);
     const [bill, setBill] = useState<Bill | null>(null);
     const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
@@ -31,6 +33,19 @@ export default function BillSummaryScreen() {
     useEffect(() => {
         loadData();
     }, [tripId, billId]);
+
+    // Configure header with share icon
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <BillShareButton
+                    trip={trip}
+                    bill={bill}
+                    paymentSummary={paymentSummary}
+                />
+            ),
+        });
+    }, [navigation, bill, trip, paymentSummary]);
 
     const loadData = async () => {
         try {
@@ -361,14 +376,6 @@ export default function BillSummaryScreen() {
                             ))}
                         </View>
                     )}
-
-                    {/* Actions */}
-                    <View style={styles.actions}>
-                        <TouchableOpacity style={styles.backButton} onPress={goBackToDashboard}>
-                            <FontAwesome name="arrow-left" size={16} color="#007AFF" />
-                            <Text style={styles.backButtonText}>Back to Dashboard</Text>
-                        </TouchableOpacity>
-                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
 
