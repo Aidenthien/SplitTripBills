@@ -2,10 +2,6 @@
 
 A React Native mobile application built with Expo that helps travelers split bills and calculate currency exchanges automatically.
 
-## 📱 **Screenshots & Demo**
-
-> *Add screenshots here when available*
-
 ## 🎯 **Key Features at a Glance**
 
 - 🏠 **Trip Room Management** - Create and organize travel expense groups
