@@ -8,6 +8,7 @@ import {
     Platform,
     Image,
     Modal,
+    ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +26,8 @@ export default function BillSummaryScreen() {
     const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
     const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
     const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
+    const [imageLoadErrors, setImageLoadErrors] = useState<{ [key: string]: boolean }>({});
+    const [imageLoading, setImageLoading] = useState<{ [key: string]: boolean }>({});
     const colorScheme = useColorScheme();
 
     useEffect(() => {
@@ -154,15 +157,75 @@ export default function BillSummaryScreen() {
                                 <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Receipt Photos ({bill.receiptPhotos.length})</Text>
                             </View>
                             <Text style={styles.sectionSubtitle}>Tap to view full size</Text>
+
+                            {/* Debug View - Remove this after fixing */}
+                            {bill.receiptPhotos.map((photo, index) => (
+                                <View key={`debug-${photo.id}`} style={{ marginBottom: 10, padding: 10, backgroundColor: '#f0f0f0' }}>
+                                    <Text style={{ fontSize: 12, marginBottom: 5 }}>Debug Photo {index + 1}:</Text>
+                                    <Text style={{ fontSize: 10, color: '#666' }} numberOfLines={2}>URI: {photo.uri}</Text>
+                                    <View style={{ flexDirection: 'row', marginTop: 5 }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 10 }}>Test Image:</Text>
+                                            <Image
+                                                source={{ uri: photo.uri }}
+                                                style={{ width: 100, height: 75, backgroundColor: '#ddd' }}
+                                                onError={(e) => console.log(`Debug image error:`, e.nativeEvent.error)}
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+                            ))}
+
                             <View style={styles.receiptPhotosGrid}>
-                                {bill.receiptPhotos.map((photo, index) => (
+                                {bill.receiptPhotos.map((photo, index) => {
+                                    // Debug log to check URI format
+                                    console.log(`Photo ${index + 1} URI:`, photo.uri.substring(0, 100));
+                                    console.log(`Photo ${index + 1} starts with:`, {
+                                        'data:': photo.uri.startsWith('data:'),
+                                        'file://': photo.uri.startsWith('file://'),
+                                        'http': photo.uri.startsWith('http'),
+                                    });
+
+                                    return (
                                     <TouchableOpacity
                                         key={photo.id}
                                         style={styles.receiptPhotoCard}
-                                        onPress={() => openPhotoModal(photo.uri)}
+                                        onPress={() => !imageLoadErrors[photo.id] && openPhotoModal(photo.uri)}
                                         activeOpacity={0.8}
+                                        disabled={imageLoadErrors[photo.id]}
                                     >
-                                        <Image source={{ uri: photo.uri }} style={styles.receiptPhotoLarge} />
+                                        {imageLoading[photo.id] && (
+                                            <View style={[styles.receiptPhotoLarge, styles.imageLoadingContainer]}>
+                                                <ActivityIndicator size="large" color="#007AFF" />
+                                            </View>
+                                        )}
+
+                                        {imageLoadErrors[photo.id] ? (
+                                            <View style={[styles.receiptPhotoLarge, styles.imageErrorContainer]}>
+                                                <FontAwesome name="image" size={40} color="#ccc" />
+                                                <Text style={styles.imageErrorText}>Failed to load</Text>
+                                            </View>
+                                        ) : (
+                                            <Image
+                                                source={{ uri: photo.uri }}
+                                                style={[
+                                                    styles.receiptPhotoLarge,
+                                                    imageLoading[photo.id] && { opacity: 0 }
+                                                ]}
+                                                resizeMode="cover"
+                                                onLoadStart={() => {
+                                                    setImageLoading(prev => ({ ...prev, [photo.id]: true }));
+                                                }}
+                                                onLoad={() => {
+                                                    setImageLoading(prev => ({ ...prev, [photo.id]: false }));
+                                                }}
+                                                onError={() => {
+                                                    console.log(`Failed to load image: ${photo.uri}`);
+                                                    setImageLoadErrors(prev => ({ ...prev, [photo.id]: true }));
+                                                    setImageLoading(prev => ({ ...prev, [photo.id]: false }));
+                                                }}
+                                            />
+                                        )}
                                         <View style={styles.receiptPhotoOverlay}>
                                             <View style={styles.receiptPhotoNumber}>
                                                 <Text style={styles.receiptPhotoNumberText}>{index + 1}</Text>
@@ -177,7 +240,8 @@ export default function BillSummaryScreen() {
                                             </View>
                                         </View>
                                     </TouchableOpacity>
-                                ))}
+                                    );
+                                })}
                             </View>
                         </View>
                     )}
@@ -716,7 +780,7 @@ const styles = StyleSheet.create({
     receiptPhotoLarge: {
         width: '100%',
         aspectRatio: 4 / 3,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#e0e0e0', // Light gray background instead of black
     },
 
     receiptPhotoOverlay: {
@@ -801,5 +865,27 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         zIndex: -1,
+    },
+
+    imageLoadingContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+
+    imageErrorContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f0f0f0',
+    },
+
+    imageErrorText: {
+        color: '#999',
+        fontSize: 12,
+        marginTop: 8,
     },
 });
