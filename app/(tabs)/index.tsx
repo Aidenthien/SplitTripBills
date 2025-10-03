@@ -8,10 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 import { Text, View } from '@/components/Themed';
 import { Trip } from '@/types';
@@ -19,6 +19,7 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import ConfirmationDialog from '@/ui/components/ConfirmationDialog/ConfirmationDialog';
+import { StorageManager } from '@/utils/StorageManager';
 
 export default function TripRoomsScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -29,18 +30,19 @@ export default function TripRoomsScreen() {
   const colorScheme = useColorScheme();
   const { showError, showSuccess } = useNotification();
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadTrips();
+    }, [])
+  );
 
   const loadTrips = async () => {
     try {
-      const savedTrips = await AsyncStorage.getItem('trips');
-      if (savedTrips) {
-        setTrips(JSON.parse(savedTrips));
-      }
+      const trips = await StorageManager.loadTrips();
+      setTrips(trips);
     } catch (error) {
       console.error('Error loading trips:', error);
+      showError('Failed to load trips');
     }
   };
 
@@ -65,7 +67,7 @@ export default function TripRoomsScreen() {
     setTrips(updatedTrips);
 
     try {
-      await AsyncStorage.setItem('trips', JSON.stringify(updatedTrips));
+      await StorageManager.saveTrips(updatedTrips);
     } catch (error) {
       console.error('Error saving trip:', error);
     }
@@ -92,7 +94,7 @@ export default function TripRoomsScreen() {
     const updatedTrips = trips.filter(trip => trip.id !== tripToDelete);
     setTrips(updatedTrips);
     try {
-      await AsyncStorage.setItem('trips', JSON.stringify(updatedTrips));
+      await StorageManager.saveTrips(updatedTrips);
       showSuccess('Trip deleted successfully!');
     } catch (error) {
       console.error('Error deleting trip:', error);
@@ -261,6 +263,7 @@ export default function TripRoomsScreen() {
           setTripToDelete(null);
         }}
       />
+
     </SafeAreaView>
   );
 }

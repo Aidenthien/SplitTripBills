@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   FlatList,
@@ -6,11 +6,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 
 import { Text, View } from '@/components/Themed';
 import { Trip, Bill } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { StorageManager } from '@/utils/StorageManager';
 
 interface BillHistory {
   bill: Bill;
@@ -22,31 +24,30 @@ export default function HistoryScreen() {
   const [billHistory, setBillHistory] = useState<BillHistory[]>([]);
   const colorScheme = useColorScheme();
 
-  useEffect(() => {
-    loadBillHistory();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadBillHistory();
+    }, [])
+  );
 
   const loadBillHistory = async () => {
     try {
-      const savedTrips = await AsyncStorage.getItem('trips');
-      if (savedTrips) {
-        const trips: Trip[] = JSON.parse(savedTrips);
-        const allBills: BillHistory[] = [];
+      const trips = await StorageManager.loadTrips();
+      const allBills: BillHistory[] = [];
 
-        trips.forEach(trip => {
-          trip.bills.forEach(bill => {
-            allBills.push({
-              bill,
-              tripName: trip.name,
-              targetCurrency: trip.targetCurrency.symbol
-            });
+      trips.forEach(trip => {
+        trip.bills.forEach(bill => {
+          allBills.push({
+            bill,
+            tripName: trip.name,
+            targetCurrency: trip.targetCurrency.symbol
           });
         });
+      });
 
-        // Sort by date (newest first)
-        allBills.sort((a, b) => new Date(b.bill.createdAt).getTime() - new Date(a.bill.createdAt).getTime());
-        setBillHistory(allBills);
-      }
+      // Sort by date (newest first)
+      allBills.sort((a, b) => new Date(b.bill.createdAt).getTime() - new Date(a.bill.createdAt).getTime());
+      setBillHistory(allBills);
     } catch (error) {
       console.error('Error loading bill history:', error);
     }

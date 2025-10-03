@@ -19,6 +19,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { CategoryDropdown, ReceiptPhotoUpload } from '@/ui/components';
 import { BILL_CATEGORIES, getDefaultCategory } from '@/constants/BillCategories';
+import { StorageManager } from '@/utils/StorageManager';
+import { FileSystemStorage } from '@/utils/FileSystemStorage';
 
 export default function CreateBillScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
@@ -38,15 +40,12 @@ export default function CreateBillScreen() {
 
     const loadTrip = async () => {
         try {
-            const savedTrips = await AsyncStorage.getItem('trips');
-            if (savedTrips) {
-                const trips: Trip[] = JSON.parse(savedTrips);
-                const foundTrip = trips.find(t => t.id === tripId);
-                if (foundTrip) {
-                    setTrip(foundTrip);
-                    if (foundTrip.travelers.length > 0) {
-                        setPayerId(foundTrip.travelers[0].id);
-                    }
+            const trips = await StorageManager.loadTrips();
+            const foundTrip = trips.find(t => t.id === tripId);
+            if (foundTrip) {
+                setTrip(foundTrip);
+                if (foundTrip.travelers.length > 0) {
+                    setPayerId(foundTrip.travelers[0].id);
                 }
             }
         } catch (error) {
@@ -115,32 +114,48 @@ export default function CreateBillScreen() {
         }
 
         try {
-            const savedTrips = await AsyncStorage.getItem('trips');
-            if (savedTrips) {
-                const trips: Trip[] = JSON.parse(savedTrips);
-                const tripIndex = trips.findIndex(t => t.id === tripId);
+            const trips = await StorageManager.loadTrips();
+            const tripIndex = trips.findIndex(t => t.id === tripId);
 
-                if (tripIndex !== -1) {
-                    const newBill: Bill = {
-                        id: Date.now().toString(),
-                        tripId: tripId!,
-                        description: description.trim(),
-                        category: selectedCategory,
-                        totalAmount: billTotal,
-                        payerId,
-                        splits,
-                        receiptPhotos: receiptPhotos.length > 0 ? receiptPhotos : undefined,
-                        createdAt: new Date(),
-                    };
+            if (tripIndex !== -1) {
+                const newBillId = Date.now().toString();
+                const newBill: Bill = {
+                    id: newBillId,
+                    tripId: tripId!,
+                    description: description.trim(),
+                    category: selectedCategory,
+                    totalAmount: billTotal,
+                    payerId,
+                    splits,
+                    createdAt: new Date(),
+                };
 
-                    trips[tripIndex].bills.push(newBill);
-                    await AsyncStorage.setItem('trips', JSON.stringify(trips));
+                trips[tripIndex].bills.push(newBill);
 
-                    showSuccess('Bill created successfully!');
+                // Save trips without photos
+                await StorageManager.saveTrips(trips);
 
-                    // Navigate back to dashboard following navigation best practices
-                    router.back();
+                // Save receipt photos to file system if any
+                if (receiptPhotos.length > 0) {
+                    try {
+                        // Since we limit to 1 photo, save the first (and only) photo
+                        const photo = receiptPhotos[0];
+                        const savedPhoto = await FileSystemStorage.saveReceiptPhoto(newBillId, photo.uri, 0);
+                        console.log('Successfully saved receipt photo:', savedPhoto.name);
+                    } catch (error) {
+                        console.warn('Failed to save receipt photo:', error);
+                        // Don't fail the entire bill creation if photo saving fails
+                        showError('Bill created but failed to save receipt photo');
+                    }
                 }
+
+                showSuccess('Bill created successfully!');
+
+                // Navigate back to dashboard with proper refresh
+                router.replace({
+                    pathname: '/trip-dashboard',
+                    params: { tripId }
+                });
             }
         } catch (error) {
             console.error('Error creating bill:', error);
@@ -300,7 +315,7 @@ export default function CreateBillScreen() {
                         <ReceiptPhotoUpload
                             photos={receiptPhotos}
                             onPhotosChange={setReceiptPhotos}
-                            maxPhotos={3}
+                            maxPhotos={1}
                         />
                     </View>
 

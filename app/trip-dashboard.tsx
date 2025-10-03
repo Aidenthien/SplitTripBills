@@ -18,6 +18,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import ScreenTransition from '@/ui/components/ScreenTransition';
 import Calculator from '@/ui/components/Calculator';
 import { BILL_CATEGORIES } from '@/constants/BillCategories';
+import { StorageManager } from '@/utils/StorageManager';
 
 export default function TripDashboardScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
@@ -70,13 +71,10 @@ export default function TripDashboardScreen() {
 
     const loadTrip = async () => {
         try {
-            const savedTrips = await AsyncStorage.getItem('trips');
-            if (savedTrips) {
-                const trips: Trip[] = JSON.parse(savedTrips);
-                const foundTrip = trips.find(t => t.id === tripId);
-                if (foundTrip) {
-                    setTrip(foundTrip);
-                }
+            const trips = await StorageManager.loadTrips();
+            const foundTrip = trips.find(t => t.id === tripId);
+            if (foundTrip) {
+                setTrip(foundTrip);
             }
         } catch (error) {
             console.error('Error loading trip:', error);

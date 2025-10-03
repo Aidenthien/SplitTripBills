@@ -19,6 +19,7 @@ import { Trip, Bill, PaymentSummary } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { BillShareButton } from '@/ui/components';
+import { StorageManager } from '@/utils/StorageManager';
 
 export default function BillSummaryScreen() {
     const { tripId, billId } = useLocalSearchParams<{ tripId: string; billId: string }>();
@@ -49,33 +50,30 @@ export default function BillSummaryScreen() {
 
     const loadData = async () => {
         try {
-            const savedTrips = await AsyncStorage.getItem('trips');
-            if (savedTrips) {
-                const trips: Trip[] = JSON.parse(savedTrips);
-                const foundTrip = trips.find(t => t.id === tripId);
-                if (foundTrip) {
-                    setTrip(foundTrip);
-                    const foundBill = foundTrip.bills.find(b => b.id === billId);
-                    if (foundBill) {
-                        // Parse date strings back to Date objects
-                        foundBill.createdAt = new Date(foundBill.createdAt);
+            const trips = await StorageManager.loadTrips();
+            const foundTrip = trips.find(t => t.id === tripId);
+            if (foundTrip) {
+                setTrip(foundTrip);
+                const foundBill = foundTrip.bills.find(b => b.id === billId);
+                if (foundBill) {
+                    // Parse date strings back to Date objects
+                    foundBill.createdAt = new Date(foundBill.createdAt);
 
-                        // Parse dates in receipt photos
-                        if (foundBill.receiptPhotos && Array.isArray(foundBill.receiptPhotos)) {
-                            foundBill.receiptPhotos = foundBill.receiptPhotos.map(photo => ({
-                                ...photo,
-                                uploadedAt: new Date(photo.uploadedAt)
-                            }));
-                            console.log('Loaded bill with photos:', {
-                                billId: foundBill.id,
-                                photoCount: foundBill.receiptPhotos.length,
-                                photoUris: foundBill.receiptPhotos.map(p => p.uri)
-                            });
-                        }
-
-                        setBill(foundBill);
-                        calculatePaymentSummary(foundTrip, foundBill);
+                    // Parse dates in receipt photos
+                    if (foundBill.receiptPhotos && Array.isArray(foundBill.receiptPhotos)) {
+                        foundBill.receiptPhotos = foundBill.receiptPhotos.map(photo => ({
+                            ...photo,
+                            uploadedAt: new Date(photo.uploadedAt)
+                        }));
+                        console.log('Loaded bill with photos:', {
+                            billId: foundBill.id,
+                            photoCount: foundBill.receiptPhotos.length,
+                            photoUris: foundBill.receiptPhotos.map(p => p.uri)
+                        });
                     }
+
+                    setBill(foundBill);
+                    calculatePaymentSummary(foundTrip, foundBill);
                 }
             }
         } catch (error) {
@@ -105,9 +103,11 @@ export default function BillSummaryScreen() {
     };
 
     const goBackToDashboard = () => {
-        // Use router.back() for natural navigation instead of router.push()
-        // This will go back to the previous screen in the navigation stack
-        router.back();
+        // Navigate directly back to dashboard with the current tripId
+        router.replace({
+            pathname: '/trip-dashboard',
+            params: { tripId }
+        });
     };
 
     const openPhotoModal = (photoUri: string) => {

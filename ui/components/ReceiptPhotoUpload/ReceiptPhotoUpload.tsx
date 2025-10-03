@@ -37,6 +37,20 @@ export default function ReceiptPhotoUpload({
         showError('Photo capture feature requires expo-image-picker. Please install it first.');
     };
 
+    const processSelectedImage = async (asset: any) => {
+        // Create photo object with file URI (don't convert to base64)
+        const newPhoto: ReceiptPhoto = {
+            id: Date.now().toString(),
+            uri: asset.uri, // Use original file URI
+            name: `receipt_${Date.now()}.jpg`,
+            size: asset.fileSize || 0,
+            type: 'image/jpeg',
+            uploadedAt: new Date(),
+        };
+
+        onPhotosChange([...photos, newPhoto]);
+    };
+
     const takePhoto = async () => {
         if (!ImagePicker) {
             handleImagePickerError();
@@ -44,7 +58,7 @@ export default function ReceiptPhotoUpload({
         }
 
         if (photos.length >= maxPhotos) {
-            showError(`Maximum ${maxPhotos} photos allowed per bill`);
+            showError(`Maximum ${maxPhotos} photo${maxPhotos > 1 ? 's' : ''} allowed per bill`);
             return;
         }
 
@@ -65,59 +79,73 @@ export default function ReceiptPhotoUpload({
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const asset = result.assets[0];
-
-                // Convert image to base64 for standalone APK compatibility
-                try {
-                    console.log('Converting image to base64...', asset.uri);
-
-                    // Check if the file exists and is readable
-                    const fileInfo = await FileSystem.getInfoAsync(asset.uri);
-                    console.log('File info:', fileInfo);
-
-                    if (!fileInfo.exists) {
-                        throw new Error('File does not exist');
-                    }
-
-                    const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-                        encoding: 'base64',
-                    });
-
-                    console.log('Base64 conversion successful, length:', base64.length);
-
-                    const base64Uri = `data:image/jpeg;base64,${base64}`;
-
-                    const newPhoto: ReceiptPhoto = {
-                        id: Date.now().toString(),
-                        uri: base64Uri, // Use base64 URI instead of file URI
-                        name: `receipt_${Date.now()}.jpg`,
-                        size: asset.fileSize || base64.length,
-                        type: 'image/jpeg',
-                        uploadedAt: new Date(),
-                    };
-
-                    onPhotosChange([...photos, newPhoto]);
-                } catch (base64Error) {
-                    console.error('Error converting image to base64:', base64Error);
-
-                    // Fallback: use original file URI for development
-                    console.log('Falling back to file URI for development mode');
-                    const newPhoto: ReceiptPhoto = {
-                        id: Date.now().toString(),
-                        uri: asset.uri, // Fallback to original URI
-                        name: `receipt_${Date.now()}.jpg`,
-                        size: asset.fileSize || 0,
-                        type: 'image/jpeg',
-                        uploadedAt: new Date(),
-                    };
-
-                    onPhotosChange([...photos, newPhoto]);
-                }
+                await processSelectedImage(asset);
             }
         } catch (error) {
             console.error('Error capturing photo:', error);
+            showError('Failed to capture photo');
         } finally {
             setIsCapturing(false);
         }
+    };
+
+    const pickFromGallery = async () => {
+        if (!ImagePicker) {
+            handleImagePickerError();
+            return;
+        }
+
+        if (photos.length >= maxPhotos) {
+            showError(`Maximum ${maxPhotos} photo${maxPhotos > 1 ? 's' : ''} allowed per bill`);
+            return;
+        }
+
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            showError('Gallery permission is required to select receipt photos.');
+            return;
+        }
+
+        setIsCapturing(true);
+
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: false,
+                quality: 0.5,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const asset = result.assets[0];
+                await processSelectedImage(asset);
+            }
+        } catch (error) {
+            console.error('Error selecting photo from gallery:', error);
+            showError('Failed to select photo from gallery');
+        } finally {
+            setIsCapturing(false);
+        }
+    };
+
+    const showPhotoOptions = () => {
+        Alert.alert(
+            'Add Receipt Photo',
+            'Choose how you want to add a receipt photo',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Take Photo',
+                    onPress: takePhoto,
+                },
+                {
+                    text: 'Choose from Gallery',
+                    onPress: pickFromGallery,
+                },
+            ]
+        );
     };
 
     const removePhoto = (photoId: string) => {
@@ -213,24 +241,24 @@ export default function ReceiptPhotoUpload({
                     isCapturing && styles.capturingButton,
                     photos.length >= maxPhotos && styles.disabledButton
                 ]}
-                onPress={takePhoto}
+                onPress={showPhotoOptions}
                 disabled={isCapturing || photos.length >= maxPhotos}
             >
                 <View style={styles.captureButtonContent}>
                     <FontAwesome
-                        name={isCapturing ? "spinner" : "camera"}
+                        name={isCapturing ? "spinner" : "plus"}
                         size={24}
                         color="white"
                         style={isCapturing ? styles.spinningIcon : undefined}
                     />
                     <Text style={styles.captureButtonText}>
-                        {isCapturing ? 'Capturing...' :
-                            photos.length >= maxPhotos ? `Maximum ${maxPhotos} photos` :
-                                photos.length === 0 ? 'Take Receipt Photo' : 'Add Another Photo'}
+                        {isCapturing ? 'Processing...' :
+                            photos.length >= maxPhotos ? `Maximum ${maxPhotos} photo${maxPhotos > 1 ? 's' : ''}` :
+                                photos.length === 0 ? 'Add Receipt Photo' : 'Replace Photo'}
                     </Text>
                 </View>
                 <Text style={styles.captureHint}>
-                    {photos.length < maxPhotos ? `${photos.length}/${maxPhotos} photos` : 'Limit reached'}
+                    {photos.length < maxPhotos ? `${photos.length}/${maxPhotos} photo${maxPhotos > 1 ? 's' : ''} • Camera or Gallery` : 'Limit reached'}
                 </Text>
             </TouchableOpacity>
         </View>

@@ -18,6 +18,7 @@ import { CURRENCIES, DEFAULT_BASE_CURRENCY } from '@/constants/Currencies';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { StorageManager } from '@/utils/StorageManager';
 
 export default function TripSetupScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
@@ -36,16 +37,13 @@ export default function TripSetupScreen() {
 
     const loadTrip = async () => {
         try {
-            const savedTrips = await AsyncStorage.getItem('trips');
-            if (savedTrips) {
-                const trips: Trip[] = JSON.parse(savedTrips);
-                const foundTrip = trips.find(t => t.id === tripId);
-                if (foundTrip) {
-                    setTrip(foundTrip);
-                    setTravelers(foundTrip.travelers);
-                    setSelectedTargetCurrency(foundTrip.targetCurrency);
-                    setExchangeRate(foundTrip.exchangeRate.toString());
-                }
+            const trips = await StorageManager.loadTrips();
+            const foundTrip = trips.find(t => t.id === tripId);
+            if (foundTrip) {
+                setTrip(foundTrip);
+                setTravelers(foundTrip.travelers);
+                setSelectedTargetCurrency(foundTrip.targetCurrency);
+                setExchangeRate(foundTrip.exchangeRate.toString());
             }
         } catch (error) {
             console.error('Error loading trip:', error);
@@ -83,28 +81,25 @@ export default function TripSetupScreen() {
         }
 
         try {
-            const savedTrips = await AsyncStorage.getItem('trips');
-            if (savedTrips) {
-                const trips: Trip[] = JSON.parse(savedTrips);
-                const tripIndex = trips.findIndex(t => t.id === tripId);
+            const trips = await StorageManager.loadTrips();
+            const tripIndex = trips.findIndex(t => t.id === tripId);
 
-                if (tripIndex !== -1) {
-                    trips[tripIndex] = {
-                        ...trips[tripIndex],
-                        travelers,
-                        targetCurrency: selectedTargetCurrency,
-                        exchangeRate: parseFloat(exchangeRate),
-                    };
+            if (tripIndex !== -1) {
+                trips[tripIndex] = {
+                    ...trips[tripIndex],
+                    travelers,
+                    targetCurrency: selectedTargetCurrency,
+                    exchangeRate: parseFloat(exchangeRate),
+                };
 
-                    await AsyncStorage.setItem('trips', JSON.stringify(trips));
+                await StorageManager.saveTrips(trips);
 
-                    showSuccess('Trip setup completed!');
+                showSuccess('Trip setup completed!');
 
-                    router.push({
-                        pathname: '/trip-dashboard',
-                        params: { tripId }
-                    });
-                }
+                router.replace({
+                    pathname: '/trip-dashboard',
+                    params: { tripId }
+                });
             }
         } catch (error) {
             console.error('Error saving trip setup:', error);
