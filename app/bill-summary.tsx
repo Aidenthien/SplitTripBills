@@ -408,11 +408,11 @@ export default function BillSummaryScreen() {
                         <Image
                             source={{ uri: selectedPhotoUri }}
                             style={{
-                                width: '90%',
-                                height: '70%',
-                                backgroundColor: '#333'
+                                width: '95%',
+                                height: '80%',
+                                backgroundColor: 'transparent' // Remove grey background
                             }}
-                            resizeMode="contain"
+                            resizeMode="contain" // Keeps full image visible without cropping
                             onLoad={() => {
                                 console.log('✅ Modal image loaded and should be visible');
                             }}
