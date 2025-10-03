@@ -26,8 +26,6 @@ export default function BillSummaryScreen() {
     const [paymentSummary, setPaymentSummary] = useState<PaymentSummary[]>([]);
     const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
     const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
-    const [imageLoadErrors, setImageLoadErrors] = useState<{ [key: string]: boolean }>({});
-    const [imageLoading, setImageLoading] = useState<{ [key: string]: boolean }>({});
     const colorScheme = useColorScheme();
 
     useEffect(() => {
@@ -158,24 +156,6 @@ export default function BillSummaryScreen() {
                             </View>
                             <Text style={styles.sectionSubtitle}>Tap to view full size</Text>
 
-                            {/* Debug View - Remove this after fixing */}
-                            {bill.receiptPhotos.map((photo, index) => (
-                                <View key={`debug-${photo.id}`} style={{ marginBottom: 10, padding: 10, backgroundColor: '#f0f0f0' }}>
-                                    <Text style={{ fontSize: 12, marginBottom: 5 }}>Debug Photo {index + 1}:</Text>
-                                    <Text style={{ fontSize: 10, color: '#666' }} numberOfLines={2}>URI: {photo.uri}</Text>
-                                    <View style={{ flexDirection: 'row', marginTop: 5 }}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontSize: 10 }}>Test Image:</Text>
-                                            <Image
-                                                source={{ uri: photo.uri }}
-                                                style={{ width: 100, height: 75, backgroundColor: '#ddd' }}
-                                                onError={(e) => console.log(`Debug image error:`, e.nativeEvent.error)}
-                                            />
-                                        </View>
-                                    </View>
-                                </View>
-                            ))}
-
                             <View style={styles.receiptPhotosGrid}>
                                 {bill.receiptPhotos.map((photo, index) => {
                                     // Debug log to check URI format
@@ -187,59 +167,70 @@ export default function BillSummaryScreen() {
                                     });
 
                                     return (
-                                    <TouchableOpacity
-                                        key={photo.id}
-                                        style={styles.receiptPhotoCard}
-                                        onPress={() => !imageLoadErrors[photo.id] && openPhotoModal(photo.uri)}
-                                        activeOpacity={0.8}
-                                        disabled={imageLoadErrors[photo.id]}
-                                    >
-                                        {imageLoading[photo.id] && (
-                                            <View style={[styles.receiptPhotoLarge, styles.imageLoadingContainer]}>
-                                                <ActivityIndicator size="large" color="#007AFF" />
-                                            </View>
-                                        )}
-
-                                        {imageLoadErrors[photo.id] ? (
-                                            <View style={[styles.receiptPhotoLarge, styles.imageErrorContainer]}>
-                                                <FontAwesome name="image" size={40} color="#ccc" />
-                                                <Text style={styles.imageErrorText}>Failed to load</Text>
-                                            </View>
-                                        ) : (
+                                        <TouchableOpacity
+                                            key={photo.id}
+                                            style={{
+                                                width: '48%',
+                                                marginBottom: 16,
+                                                backgroundColor: '#f0f0f0',
+                                                borderRadius: 8,
+                                                overflow: 'hidden'
+                                            }}
+                                            onPress={() => openPhotoModal(photo.uri)}
+                                            activeOpacity={0.7}
+                                        >
+                                            {/* Simple, reliable image display */}
                                             <Image
                                                 source={{ uri: photo.uri }}
-                                                style={[
-                                                    styles.receiptPhotoLarge,
-                                                    imageLoading[photo.id] && { opacity: 0 }
-                                                ]}
+                                                style={{
+                                                    width: '100%',
+                                                    height: 120,
+                                                    backgroundColor: '#ddd'
+                                                }}
                                                 resizeMode="cover"
-                                                onLoadStart={() => {
-                                                    setImageLoading(prev => ({ ...prev, [photo.id]: true }));
-                                                }}
                                                 onLoad={() => {
-                                                    setImageLoading(prev => ({ ...prev, [photo.id]: false }));
+                                                    console.log(`✅ Simple image ${index + 1} loaded and should be visible`);
                                                 }}
-                                                onError={() => {
-                                                    console.log(`Failed to load image: ${photo.uri}`);
-                                                    setImageLoadErrors(prev => ({ ...prev, [photo.id]: true }));
-                                                    setImageLoading(prev => ({ ...prev, [photo.id]: false }));
+                                                onError={(e) => {
+                                                    console.log(`❌ Simple image ${index + 1} failed:`, e.nativeEvent.error);
                                                 }}
                                             />
-                                        )}
-                                        <View style={styles.receiptPhotoOverlay}>
-                                            <View style={styles.receiptPhotoNumber}>
-                                                <Text style={styles.receiptPhotoNumberText}>{index + 1}</Text>
+
+                                            {/* Simple overlay with photo number */}
+                                            <View style={{
+                                                position: 'absolute',
+                                                top: 8,
+                                                left: 8,
+                                                backgroundColor: 'rgba(0, 122, 255, 0.9)',
+                                                borderRadius: 12,
+                                                width: 24,
+                                                height: 24,
+                                                justifyContent: 'center',
+                                                alignItems: 'center'
+                                            }}>
+                                                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+                                                    {index + 1}
+                                                </Text>
                                             </View>
-                                            <View style={styles.receiptPhotoInfo}>
-                                                <Text style={styles.receiptPhotoTime}>
+
+                                            {/* Photo timestamp */}
+                                            <View style={{
+                                                position: 'absolute',
+                                                bottom: 8,
+                                                right: 8,
+                                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                                borderRadius: 4,
+                                                paddingHorizontal: 6,
+                                                paddingVertical: 2
+                                            }}>
+                                                <Text style={{ color: 'white', fontSize: 10 }}>
                                                     {new Date(photo.uploadedAt).toLocaleTimeString([], {
                                                         hour: '2-digit',
                                                         minute: '2-digit'
                                                     })}
                                                 </Text>
                                             </View>
-                                        </View>
-                                    </TouchableOpacity>
+                                        </TouchableOpacity>
                                     );
                                 })}
                             </View>
@@ -381,7 +372,7 @@ export default function BillSummaryScreen() {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Photo Modal */}
+            {/* Simple Photo Modal */}
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -389,29 +380,58 @@ export default function BillSummaryScreen() {
                 onRequestClose={closePhotoModal}
                 statusBarTranslucent={true}
             >
-                <View style={styles.photoModalOverlay}>
+                <View style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}>
+                    {/* Close button */}
                     <TouchableOpacity
-                        style={styles.photoModalClose}
+                        style={{
+                            position: 'absolute',
+                            top: 50,
+                            right: 20,
+                            zIndex: 1000,
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            borderRadius: 20,
+                            padding: 10
+                        }}
                         onPress={closePhotoModal}
                         activeOpacity={0.8}
                     >
-                        <View style={styles.closeButtonContainer}>
-                            <FontAwesome name="times" size={24} color="white" />
-                        </View>
+                        <FontAwesome name="times" size={24} color="white" />
                     </TouchableOpacity>
 
+                    {/* Simple full-size image */}
                     {selectedPhotoUri && (
-                        <View style={styles.photoModalContent}>
-                            <Image
-                                source={{ uri: selectedPhotoUri }}
-                                style={styles.fullSizePhoto}
-                                resizeMode="contain"
-                            />
-                        </View>
+                        <Image
+                            source={{ uri: selectedPhotoUri }}
+                            style={{
+                                width: '90%',
+                                height: '70%',
+                                backgroundColor: '#333'
+                            }}
+                            resizeMode="contain"
+                            onLoad={() => {
+                                console.log('✅ Modal image loaded and should be visible');
+                            }}
+                            onError={(e) => {
+                                console.log('❌ Modal image failed:', e.nativeEvent.error);
+                            }}
+                        />
                     )}
 
+                    {/* Background touchable to close */}
                     <TouchableOpacity
-                        style={styles.photoModalBackground}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: -1
+                        }}
                         onPress={closePhotoModal}
                         activeOpacity={1}
                     />
@@ -754,138 +774,11 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
-    // Enhanced Receipt Photos Styles
+    // Simple Receipt Photos Grid
     receiptPhotosGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
-        marginTop: 12,
-    },
-
-    receiptPhotoCard: {
-        flex: 1,
-        minWidth: '45%',
-        maxWidth: '48%',
-        position: 'relative',
-        borderRadius: 12,
-        overflow: 'hidden',
-        backgroundColor: '#f8f9fa',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-    },
-
-    receiptPhotoLarge: {
-        width: '100%',
-        aspectRatio: 4 / 3,
-        backgroundColor: '#e0e0e0', // Light gray background instead of black
-    },
-
-    receiptPhotoOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
         justifyContent: 'space-between',
-        padding: 8,
-    },
-
-    receiptPhotoNumber: {
-        alignSelf: 'flex-start',
-        backgroundColor: 'rgba(0, 122, 255, 0.9)',
-        borderRadius: 12,
-        minWidth: 24,
-        height: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    receiptPhotoNumberText: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-
-    receiptPhotoInfo: {
-        alignSelf: 'flex-end',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        borderRadius: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-    },
-
-    receiptPhotoTime: {
-        color: 'white',
-        fontSize: 11,
-        fontWeight: '500',
-    },
-
-    // Photo Modal Styles
-    photoModalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    photoModalClose: {
-        position: 'absolute',
-        top: 50,
-        right: 20,
-        zIndex: 1000,
-    },
-
-    closeButtonContainer: {
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        borderRadius: 20,
-        padding: 10,
-    },
-
-    photoModalContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-    },
-
-    fullSizePhoto: {
-        width: '100%',
-        height: '80%',
-        maxWidth: 400,
-        maxHeight: 600,
-    },
-
-    photoModalBackground: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: -1,
-    },
-
-    imageLoadingContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-    },
-
-    imageErrorContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f0f0f0',
-    },
-
-    imageErrorText: {
-        color: '#999',
-        fontSize: 12,
-        marginTop: 8,
+        marginTop: 12,
     },
 });

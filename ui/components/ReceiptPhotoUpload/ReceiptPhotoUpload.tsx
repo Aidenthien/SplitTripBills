@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Text } from '@/components/Themed';
 import { ReceiptPhoto } from '@/types';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -28,7 +29,7 @@ export default function ReceiptPhotoUpload({
     maxPhotos = 3
 }: ReceiptPhotoUploadProps) {
     const colorScheme = useColorScheme();
-    const styles = createReceiptPhotoUploadStyles(colorScheme);
+    const styles = createReceiptPhotoUploadStyles(colorScheme ?? 'light');
     const { showError, showSuccess } = useNotification();
     const [isCapturing, setIsCapturing] = useState(false);
 
@@ -59,25 +60,61 @@ export default function ReceiptPhotoUpload({
             const result = await ImagePicker.launchCameraAsync({
                 allowsEditing: false,
                 aspect: [4, 3],
-                quality: 0.9, // Higher quality for receipts
+                quality: 0.5,
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const asset = result.assets[0];
-                const newPhoto: ReceiptPhoto = {
-                    id: Date.now().toString(),
-                    uri: asset.uri,
-                    name: `receipt_${Date.now()}.jpg`,
-                    size: asset.fileSize || 0,
-                    type: 'image/jpeg',
-                    uploadedAt: new Date(),
-                };
 
-                onPhotosChange([...photos, newPhoto]);
+                // Convert image to base64 for standalone APK compatibility
+                try {
+                    console.log('Converting image to base64...', asset.uri);
+
+                    // Check if the file exists and is readable
+                    const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+                    console.log('File info:', fileInfo);
+
+                    if (!fileInfo.exists) {
+                        throw new Error('File does not exist');
+                    }
+
+                    const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+                        encoding: 'base64',
+                    });
+
+                    console.log('Base64 conversion successful, length:', base64.length);
+
+                    const base64Uri = `data:image/jpeg;base64,${base64}`;
+
+                    const newPhoto: ReceiptPhoto = {
+                        id: Date.now().toString(),
+                        uri: base64Uri, // Use base64 URI instead of file URI
+                        name: `receipt_${Date.now()}.jpg`,
+                        size: asset.fileSize || base64.length,
+                        type: 'image/jpeg',
+                        uploadedAt: new Date(),
+                    };
+
+                    onPhotosChange([...photos, newPhoto]);
+                } catch (base64Error) {
+                    console.error('Error converting image to base64:', base64Error);
+
+                    // Fallback: use original file URI for development
+                    console.log('Falling back to file URI for development mode');
+                    const newPhoto: ReceiptPhoto = {
+                        id: Date.now().toString(),
+                        uri: asset.uri, // Fallback to original URI
+                        name: `receipt_${Date.now()}.jpg`,
+                        size: asset.fileSize || 0,
+                        type: 'image/jpeg',
+                        uploadedAt: new Date(),
+                    };
+
+                    onPhotosChange([...photos, newPhoto]);
+                }
             }
         } catch (error) {
             console.error('Error capturing photo:', error);
-            showError('Failed to capture photo. Please try again.');
         } finally {
             setIsCapturing(false);
         }
