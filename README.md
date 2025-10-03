@@ -42,15 +42,23 @@ This project follows a **clean architecture** with proper separation of concerns
 
 SplitTripBills is designed to simplify the process of splitting travel expenses among friends while handling currency conversions automatically. The app allows users to create trip rooms, set up currency exchange rates, and split bills with automatic MYR (Malaysian Ringgit) conversions.
 
-## ✨ User Experience Improvements
+### 🎨 Enhanced User Experience
 
-### ⌨️ Enhanced Input Handling
+#### ⌨️ Enhanced Input Handling
 - **Keyboard-Aware Interface**: All screens automatically adjust when the keyboard appears
 - **Smart Scrolling**: Input fields at the bottom of forms are automatically scrollable
 - **Focus Management**: Tapping input fields ensures they remain visible above the keyboard
 - **Cross-Platform Compatibility**: Optimized keyboard behavior for both iOS and Android
 
-### 🎨 Theme System
+#### 🎭 Smooth Navigation Animations
+- **Fluid Transitions**: Seamless slide animations between screens eliminate white flashes
+- **Theme-Aware Backgrounds**: Consistent background colors during navigation transitions
+- **Gesture-Enabled Navigation**: Smooth swipe-back gestures on supported platforms
+- **Optimized Performance**: Hardware-accelerated animations with proper timing
+- **Anti-Flicker Technology**: Advanced transition handling prevents white screen flashes
+- **Platform-Optimized**: Different animation styles for iOS and Android following platform guidelines
+
+#### 🎨 Theme System
 - **Automatic Theme Detection**: Follows system light/dark mode preference
 - **Real-time Theme Switching**: Changes instantly when system theme is modified
 - **Consistent Design**: All UI elements maintain proper contrast in both themes
@@ -73,6 +81,10 @@ SplitTripBills is designed to simplify the process of splitting travel expenses 
 
 3. **Internal Trip Dashboard**
    - View trip details including travelers and exchange rates
+   - **🔍 Search & Filter Bills**: Quick search by description or category with advanced filtering
+   - **📅 Date Filtering**: Filter bills by Today, This Week, This Month, or All Time
+   - **🏷️ Category Filtering**: Filter by multiple expense categories simultaneously
+   - **🔄 Smart Results**: Real-time filtering with active filter indicators
    - Access all split bills for the trip
    - Create new split bills
    - Navigate to bill summaries
@@ -100,6 +112,23 @@ SplitTripBills is designed to simplify the process of splitting travel expenses 
    - **Cross-Platform Sharing**: Native sharing to WhatsApp, email, Google Drive, and other apps
    - **No Storage Impact**: Temporary PDF files automatically deleted after sharing
    - **Professional Layout**: Clean, print-ready PDF format with company branding
+
+7. **🧮 Universal Calculator Tab**
+   - **Independent Calculator**: Standalone calculator accessible from main navigation
+   - **Manual Exchange Rate**: Set any exchange rate manually for any currency pair
+   - **Multi-Currency Support**: Choose from all supported currencies as base and target
+   - **Real-time Updates**: Change exchange rates anytime without affecting trip settings
+   - **Standard Operations**: Full calculator functionality (+, -, ×, ÷)
+   - **Quick Conversion**: One-tap conversion from target to base currency
+   - **Perfect for Travel**: Calculate costs on the go with current market rates
+
+8. **🧮 Quick Calculator (Trip-Specific)**
+   - **One-tap Access**: Calculator button in trip dashboard header
+   - **Currency Conversion**: Convert target country currency back to your base currency (MYR)
+   - **Basic Calculations**: Standard calculator functions (+, -, ×, ÷)
+   - **Travel-focused**: Designed for travelers who need to convert foreign prices to home currency
+   - **Always Available**: Accessible whenever you're viewing trip bills
+   - **High Precision**: Shows 3 decimal places for accurate financial calculations
 
 7. **Receipt Photo Management**
    - **Camera Integration**: Take photos directly within the app
@@ -203,6 +232,38 @@ The app uses Malaysian Ringgit (MYR) as the default base currency. To modify thi
 3. **Enter exchange rate** (e.g., 300 for Korean Won)
 4. **Tap \"Save & Continue\"** to access the trip dashboard
 
+### 🔍 Searching and Filtering Bills
+
+1. **Quick Search**:
+   - Use the search bar at the top of any trip dashboard
+   - Search by bill description or category name
+   - Results update in real-time as you type
+   - Clear search with the X button
+
+2. **Advanced Filtering**:
+   - Tap the **"Filter"** button next to the search bar
+   - **iPhone-Style Date Picker**:
+     - Select custom start date ("From" date) with intuitive day/month/year picker
+     - Select custom end date ("To" date) with scrollable date components
+     - Native iOS-style interface with separate day, month, and year selection
+     - Smooth scrolling with snap-to-item behavior for precise selection
+     - "Cancel" and "Done" buttons for easy confirmation
+   - **Category Selection**:
+     - Choose multiple categories simultaneously
+     - Each category shows its icon and color coding
+     - Filter by Food, Transportation, Accommodation, etc.
+
+3. **Filter Management**:
+   - **Active filter badge** shows number of applied filters
+   - **Filter chips** display currently active filters below controls
+   - **Clear button** appears when filters are active
+   - **"Clear All"** resets all search and filter criteria
+
+4. **Smart Results**:
+   - Empty state changes based context (no bills vs. no results)
+   - Filtered results maintain chronological order (newest first)
+   - Combines search and filter criteria intelligently
+
 ### ✂️ Creating Split Bills
 
 1. **From the trip dashboard**, tap \"New Bill\"
@@ -240,6 +301,48 @@ The bill summary shows:
    - WhatsApp, Email, Google Drive, and other installed apps
    - PDF is automatically deleted from device after sharing
    - No permanent storage impact on your device
+
+### 🧮 Using the Universal Calculator
+
+1. **Access the calculator**:
+   - Tap the **"Calculator"** tab in the main navigation (middle tab)
+   - Independent of any specific trip - works with any currency pair
+2. **Select currencies**:
+   - Tap the **base currency** dropdown to choose your home currency
+   - Tap the **target currency** dropdown to choose the foreign currency
+   - Exchange icon shows the conversion direction
+3. **Set exchange rate**:
+   - Tap the **exchange rate** area to open the rate input modal
+   - Enter the current market rate (e.g., 4.500 for MYR to USD)
+   - Tap **"Update"** to save the new rate
+4. **Perform calculations**:
+   - Use the calculator as normal for any mathematical operations
+   - Enter amounts in the target currency
+   - Tap **"Convert to [Base Currency]"** to see the equivalent
+5. **Real-world usage**:
+   - Check current exchange rates online and input them manually
+   - Calculate costs before travel to different countries
+   - Compare prices across different currencies
+   - Get accurate conversions independent of any trip settings
+
+### 🧮 Using the Quick Calculator (Trip-Specific)
+
+1. **Access the calculator**:
+   - From any trip dashboard, tap the **calculator icon** in the top-right corner
+   - Calculator shows the conversion rate from target currency to your base currency
+2. **Perform calculations**:
+   - Use standard operations: +, -, ×, ÷
+   - Enter amounts using the number pad
+   - Clear calculations with the red "C" button
+3. **Currency conversion**:
+   - Enter the amount in the **target country's currency** (e.g., Korean Won, Japanese Yen)
+   - Tap **"Convert to [Base Currency]"** to see the equivalent in your home currency (MYR)
+   - Results show 3 decimal places for financial accuracy
+4. **Real-world usage**:
+   - Check menu prices to understand the real cost in MYR
+   - Convert shopping prices before making purchases
+   - Quickly evaluate if group expenses are reasonable
+   - Calculate your portion of shared costs in familiar currency
 
 ### 📷 Managing Receipt Photos
 
@@ -316,7 +419,6 @@ constants/
 ### 📋 Planned Features
 1. **🌐 Multi-language support** for international travelers
 2. **🔄 Automatic exchange rate updates** via API integration
-3. **👥 Group chat integration** for bill discussions
 
 ---
 

@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, ReactNode } from 'react';
 import { Animated, ViewStyle } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 
 interface ScreenTransitionProps {
     children: ReactNode;
     animationType?: 'fade' | 'slide' | 'scale';
     duration?: number;
     style?: ViewStyle;
+    backgroundColor?: string;
 }
 
 export default function ScreenTransition({
@@ -14,11 +17,16 @@ export default function ScreenTransition({
     animationType = 'fade',
     duration = 300,
     style,
+    backgroundColor,
 }: ScreenTransitionProps) {
     const isFocused = useIsFocused();
+    const colorScheme = useColorScheme();
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(50)).current;
     const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+    // Get theme-appropriate background color
+    const defaultBackgroundColor = backgroundColor || Colors[colorScheme ?? 'light'].background;
 
     useEffect(() => {
         if (isFocused) {
@@ -80,6 +88,7 @@ export default function ScreenTransition({
         const baseStyle: ViewStyle = {
             flex: 1,
             opacity: fadeAnim,
+            backgroundColor: defaultBackgroundColor,
         };
 
         switch (animationType) {

@@ -51,20 +51,33 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
-  // Modern navigation animations
+  // Create consistent theme for smooth transitions
+  const customTheme = {
+    ...colorScheme === 'dark' ? DarkTheme : DefaultTheme,
+    colors: {
+      ...(colorScheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      background: colorScheme === 'dark' ? '#000000' : '#FFFFFF',
+      card: colorScheme === 'dark' ? '#1C1C1E' : '#FFFFFF',
+    },
+  };
+
+  // Enhanced screen options for smooth animations
   const screenOptions = {
     headerShown: true,
     headerStyle: {
-      backgroundColor: colorScheme === 'dark' ? '#000000' : '#FFFFFF',
+      backgroundColor: customTheme.colors.card,
+      elevation: 0,
+      shadowOpacity: 0,
+      borderBottomWidth: 0,
     },
-    headerTintColor: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
+    headerTintColor: customTheme.colors.text,
     headerTitleStyle: {
       fontWeight: '600' as const,
+      fontSize: 17,
     },
-    // Smooth slide transition for iOS-like feel
+    headerBackTitleVisible: false,
     animation: 'slide_from_right' as const,
-    animationDuration: 300,
-    // Add subtle spring animation
+    animationDuration: Platform.OS === 'ios' ? 350 : 300,
     gestureEnabled: true,
     gestureDirection: 'horizontal' as const,
   };
@@ -72,21 +85,29 @@ function RootLayoutNav() {
   const modalOptions = {
     presentation: 'modal' as const,
     animation: 'slide_from_bottom' as const,
-    animationDuration: 250,
+    animationDuration: 300,
     headerShown: false,
   };
 
   return (
     <NotificationProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={customTheme}>
         <Stack
           screenOptions={{
-            // Global animation settings for smooth transitions
-            animation: Platform.OS === 'ios' ? 'slide_from_right' : 'fade_from_bottom',
-            animationDuration: 300,
+            // Improved global animation settings
+            animation: 'slide_from_right',
+            animationDuration: Platform.OS === 'ios' ? 350 : 300,
             gestureEnabled: true,
-            // Remove flickering by ensuring smooth transitions
+            // Critical: Prevent flickering during transitions
             freezeOnBlur: true,
+            // Consistent header styling
+            headerStyle: {
+              backgroundColor: customTheme.colors.card,
+            },
+            headerTintColor: customTheme.colors.text,
+            headerTitleStyle: {
+              fontWeight: '600',
+            },
           }}
         >
           <Stack.Screen
@@ -94,7 +115,7 @@ function RootLayoutNav() {
             options={{
               headerShown: false,
               animation: 'fade',
-              animationDuration: 200,
+              animationDuration: 250,
             }}
           />
           <Stack.Screen
@@ -107,7 +128,6 @@ function RootLayoutNav() {
               ...screenOptions,
               title: 'Trip Setup',
               headerBackTitle: 'Back',
-              animation: 'slide_from_right',
             }}
           />
           <Stack.Screen
@@ -116,7 +136,6 @@ function RootLayoutNav() {
               ...screenOptions,
               title: 'Trip Dashboard',
               headerBackTitle: 'Back',
-              animation: 'slide_from_right',
             }}
           />
           <Stack.Screen
@@ -125,7 +144,6 @@ function RootLayoutNav() {
               ...screenOptions,
               title: 'Create Split Bill',
               headerBackTitle: 'Back',
-              animation: 'slide_from_right',
             }}
           />
           <Stack.Screen
@@ -134,9 +152,7 @@ function RootLayoutNav() {
               ...screenOptions,
               title: 'Bill Summary',
               headerBackTitle: 'Back',
-              animation: 'slide_from_right',
-              // Special animation for final summary screen
-              animationDuration: 350,
+              animationDuration: 400,
             }}
           />
         </Stack>

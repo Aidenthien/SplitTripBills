@@ -164,7 +164,7 @@ export default function TripRoomsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
       <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         <Text style={styles.title}>My Trip Rooms</Text>
         <TouchableOpacity
