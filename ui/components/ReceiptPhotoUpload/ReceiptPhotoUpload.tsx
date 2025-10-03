@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
+import { View, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Text } from '@/components/Themed';
@@ -7,6 +7,7 @@ import { ReceiptPhoto } from '@/types';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { createReceiptPhotoUploadStyles } from './ReceiptPhotoUpload.styles';
+import PhotoOptionsDialog from '../PhotoOptionsDialog/PhotoOptionsDialog';
 
 // Note: This component requires expo-image-picker to be installed
 // Run: npx expo install expo-image-picker
@@ -32,6 +33,7 @@ export default function ReceiptPhotoUpload({
     const styles = createReceiptPhotoUploadStyles(colorScheme ?? 'light');
     const { showError, showSuccess } = useNotification();
     const [isCapturing, setIsCapturing] = useState(false);
+    const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
 
     const handleImagePickerError = () => {
         showError('Photo capture feature requires expo-image-picker. Please install it first.');
@@ -128,45 +130,26 @@ export default function ReceiptPhotoUpload({
     };
 
     const showPhotoOptions = () => {
-        Alert.alert(
-            'Add Receipt Photo',
-            'Choose how you want to add a receipt photo',
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Take Photo',
-                    onPress: takePhoto,
-                },
-                {
-                    text: 'Choose from Gallery',
-                    onPress: pickFromGallery,
-                },
-            ]
-        );
+        setPhotoOptionsVisible(true);
+    };
+
+    const hidePhotoOptions = () => {
+        setPhotoOptionsVisible(false);
+    };
+
+    const handleCameraOption = async () => {
+        hidePhotoOptions();
+        await takePhoto();
+    };
+
+    const handleGalleryOption = async () => {
+        hidePhotoOptions();
+        await pickFromGallery();
     };
 
     const removePhoto = (photoId: string) => {
-        Alert.alert(
-            'Remove Photo',
-            'Are you sure you want to remove this receipt photo?',
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Remove',
-                    style: 'destructive',
-                    onPress: () => {
-                        const updatedPhotos = photos.filter(photo => photo.id !== photoId);
-                        onPhotosChange(updatedPhotos);
-                    },
-                },
-            ]
-        );
+        const updatedPhotos = photos.filter(photo => photo.id !== photoId);
+        onPhotosChange(updatedPhotos);
     };
 
     const formatFileSize = (bytes: number): string => {
@@ -261,6 +244,15 @@ export default function ReceiptPhotoUpload({
                     {photos.length < maxPhotos ? `${photos.length}/${maxPhotos} photo${maxPhotos > 1 ? 's' : ''} • Camera or Gallery` : 'Limit reached'}
                 </Text>
             </TouchableOpacity>
+
+            <PhotoOptionsDialog
+                visible={photoOptionsVisible}
+                title="Add Receipt Photo"
+                subtitle="Choose how you want to add a receipt photo"
+                onCamera={handleCameraOption}
+                onGallery={handleGalleryOption}
+                onCancel={hidePhotoOptions}
+            />
         </View>
     );
 }

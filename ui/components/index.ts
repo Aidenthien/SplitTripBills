@@ -12,3 +12,4 @@ export { default as CategoryDropdown } from './CategoryDropdown';
 export { default as ReceiptPhotoUpload } from './ReceiptPhotoUpload';
 export { default as BillShareButton } from './BillShareButton';
 export { default as Calculator } from './Calculator';
+export { default as PhotoOptionsDialog } from './PhotoOptionsDialog';

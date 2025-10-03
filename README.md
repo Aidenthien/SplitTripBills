@@ -8,11 +8,13 @@ A React Native mobile application built with Expo that helps travelers split bil
 - 👥 **Multi-Traveler Support** - Add unlimited travelers to any trip
 - 💱 **Currency Exchange** - Automatic conversions with custom rates
 - 📊 **Smart Bill Splitting** - Equal or custom amount distribution
-- 📸 **Receipt Photos** - Capture and embed receipt images
+- 📸 **Modern Receipt Photos** - Beautiful camera/gallery selection with optimized UI
+- 🎨 **Modern Dialog System** - Sleek animated dialogs with haptic feedback
 - 📄 **PDF Export** - Professional bill summaries with embedded photos
 - 📱 **Native Sharing** - Share PDFs via WhatsApp, email, and more
+- 🔄 **Real-time Data Refresh** - Auto-refresh when navigating between screens
 - 🌙 **Dark Mode** - Automatic theme switching
-- 💾 **Local Storage** - All data stored securely on device
+- 💾 **Scalable Storage** - Advanced file system storage for 150+ images
 
 ## 🛠️ **Project Architecture**
 
@@ -53,6 +55,19 @@ SplitTripBills is designed to simplify the process of splitting travel expenses 
 - **Optimized Performance**: Hardware-accelerated animations with proper timing
 - **Anti-Flicker Technology**: Advanced transition handling prevents white screen flashes
 - **Platform-Optimized**: Different animation styles for iOS and Android following platform guidelines
+
+#### 🔄 Real-time Data Management
+- **Auto-refresh Navigation**: Trip rooms and history screens automatically refresh when you return
+- **Smart Focus Detection**: Uses `useFocusEffect` for seamless data updates
+- **Consistent State**: No more stale data when navigating between tabs
+- **Optimized Performance**: Intelligent refresh only when screens come into focus
+
+#### 🎨 Modern Dialog System
+- **Beautiful Animations**: Spring-based scale and opacity transitions
+- **Haptic Feedback**: Subtle vibrations on iOS for enhanced interaction
+- **Professional Design**: Card-based layouts with proper shadows and elevation
+- **Theme Integration**: Automatic light/dark mode adaptation
+- **iOS-Style Interfaces**: Native-feeling modals with smooth animations
 
 #### 🎨 Theme System
 - **Automatic Theme Detection**: Follows system light/dark mode preference
@@ -126,32 +141,37 @@ SplitTripBills is designed to simplify the process of splitting travel expenses 
    - **Always Available**: Accessible whenever you're viewing trip bills
    - **High Precision**: Shows 3 decimal places for accurate financial calculations
 
-7. **Receipt Photo Management**
-   - **Camera Integration**: Take photos directly within the app
-   - **Multiple Photos**: Support for up to 5 receipt photos per bill
-   - **Image Optimization**: Automatic base64 conversion for APK compatibility
-   - **Thumbnail Preview**: Grid layout with photo numbering
-   - **File Size Display**: Monitor storage usage per photo
-   - **Easy Removal**: Delete photos with confirmation dialogs
+9. **📸 Modern Receipt Photo Management**
+   - **Beautiful Photo Options Dialog**: Modern animated modal for camera/gallery selection
+   - **Dual Input Methods**: Choose between camera capture or gallery selection
+   - **Smart Limit Management**: Limited to 1 photo per bill for optimal performance
+   - **Professional UI**: Card-based option selection with icons and descriptions
+   - **Scalable Storage**: Advanced file system storage supporting 150+ images
+   - **Organized Structure**: One folder per bill for clean file organization
+   - **Optimized Processing**: Simplified photo handling to avoid file system errors
+   - **Instant Removal**: One-tap photo deletion with smooth animations
 
-8. **History Tab**
-   - View all bills across all trips
-   - Chronological bill history
-   - Quick overview of past expenses
+10. **📋 Smart History Management**
+   - **Auto-refreshing History**: Automatically updates when you return to the tab
+   - **Cross-trip Overview**: View all bills across all trips in one place
+   - **Chronological Sorting**: Bills organized by creation date (newest first)
+   - **Trip Context**: Each bill shows its associated trip name
+   - **Real-time Updates**: No more stale data - always shows latest bills
 
 ## 🔧 Technical Specifications
 
 ### 💻 Technology Stack
 - **⚙️ Framework**: React Native with Expo
-- **🧭 Navigation**: Expo Router (file-based routing)
+- **🧭 Navigation**: Expo Router (file-based routing) with `useFocusEffect`
 - **📝 Language**: TypeScript
-- **💾 Storage**: AsyncStorage for local data persistence
-- **🎨 UI Components**: Custom components with Themed support
+- **💾 Storage**: AsyncStorage for metadata + FileSystemStorage for images
+- **🎨 UI Components**: Custom components with Themed support and modern dialogs
 - **🎨 Icons**: FontAwesome from @expo/vector-icons
-- **📸 Image Handling**: expo-image-picker for camera integration
+- **📸 Image Handling**: expo-image-picker for camera and gallery integration
 - **📄 PDF Generation**: expo-print for automated document creation
 - **📱 File Sharing**: expo-sharing for cross-platform sharing capabilities
-- **📋 File System**: expo-file-system for image processing and file management
+- **📋 File System**: expo-file-system for scalable image storage and management
+- **⚡ State Management**: React hooks with automatic refresh on screen focus
 
 ### 💱 Supported Currencies
 - Malaysian Ringgit (MYR) - Default base currency
@@ -342,17 +362,28 @@ The bill summary shows:
 
 ### 📷 Managing Receipt Photos
 
-1. **Taking photos**:
-   - Use \"Take Receipt Photo\" button during bill creation
-   - Camera opens directly within the app
-   - Photos are automatically numbered and organized
-2. **Viewing photos**:
-   - Tap any thumbnail to view full-size image
-   - Photos display in modal with dark overlay
-   - Swipe or tap to close full-size view
-3. **Removing photos**:
-   - Tap the X button on any photo thumbnail
-   - Confirmation dialog prevents accidental deletion
+### 📷 Managing Receipt Photos
+
+1. **📸 Modern Photo Selection**:
+   - Tap **"Add Receipt Photo"** during bill creation
+   - Beautiful animated dialog appears with two options:
+     - **📷 Take Photo**: Use camera to capture receipt
+     - **🖼️ Choose from Gallery**: Select existing photo from gallery
+   - Professional card-based interface with icons and descriptions
+   - Smooth animations with haptic feedback on iOS
+
+2. **📁 Smart Storage Management**:
+   - **One photo per bill** for optimal performance
+   - **Organized file structure**: Each bill gets its own folder
+   - **Scalable architecture**: Supports 150+ images across all bills
+   - **Automatic optimization**: Simplified processing prevents file system errors
+   - **No storage bloat**: Clean file organization without base64 conversion
+
+3. **👆 Easy Photo Management**:
+   - **Instant preview**: See photo thumbnail immediately after capture
+   - **One-tap removal**: Simply tap the X button to remove
+   - **No confirmations needed**: Streamlined deletion process
+   - **File size display**: Monitor storage usage per photo
 
 ## 🔧 Troubleshooting
 
@@ -364,16 +395,20 @@ The bill summary shows:
 4. **Currency calculations wrong**: Verify the exchange rate entered in trip setup
 5. **Camera not working**: Ensure camera permissions are granted in device settings
 6. **PDF generation failed**: Check that expo-print and expo-sharing are installed
-7. **Receipt photos not displaying**: Images are converted to base64 for APK compatibility
+7. **Photos not saving**: Modern file system storage prevents most photo issues
 8. **Share button disabled**: Ensure bill and trip data are fully loaded
+9. **Stale data in tabs**: Fixed with auto-refresh - data now updates when returning to screens
+10. **File system errors**: Resolved with simplified photo processing and proper fallback methods
 
 ### 🎯 Error Handling
-- Invalid exchange rates are rejected with user-friendly messages
-- Bill amounts are validated for mathematical consistency
-- Required fields are enforced with appropriate error messages
-- Camera permission requests are handled gracefully
-- PDF generation errors provide detailed feedback
-- Image conversion failures fall back to original file URIs
+- **Exchange Rate Validation**: Invalid rates rejected with user-friendly messages
+- **Bill Amount Consistency**: Mathematical validation ensures accurate calculations
+- **Required Field Enforcement**: Clear error messages for missing information
+- **Permission Management**: Graceful camera and gallery permission requests
+- **PDF Generation**: Detailed feedback for document creation errors
+- **Storage Resilience**: Multiple fallback methods for photo saving
+- **Navigation Recovery**: Auto-refresh prevents data inconsistency issues
+- **File System Stability**: Simplified processing eliminates copyAsync errors
 
 ### 🔄 Resetting Data
 To clear all app data:
@@ -386,28 +421,38 @@ To clear all app data:
 ```
 app/
 ├── (tabs)/
-│   ├── index.tsx          # Trip Rooms screen
-│   ├── two.tsx            # History screen
+│   ├── index.tsx          # Trip Rooms screen (with useFocusEffect)
+│   ├── two.tsx            # History screen (with auto-refresh)
+│   ├── calculator.tsx     # Universal calculator tab
 │   └── _layout.tsx        # Tab navigation
 ├── trip-setup.tsx         # Trip setup screen
-├── trip-dashboard.tsx     # Trip dashboard
+├── trip-dashboard.tsx     # Trip dashboard with search & filter
 ├── create-bill.tsx        # Bill creation screen
 ├── bill-summary.tsx       # Bill summary screen
 └── _layout.tsx           # Root navigation
 
 ui/components/
 ├── BillShareButton/       # PDF generation and sharing
-├── ReceiptPhotoUpload/    # Camera integration and photo management
+├── ReceiptPhotoUpload/    # Modern photo upload with dialog
+├── PhotoOptionsDialog/    # Beautiful camera/gallery selection modal
+├── ConfirmationDialog/    # Reusable confirmation dialogs
+├── Calculator/            # Universal calculator component
 ├── Button/                # Reusable button components
 ├── Card/                  # Card layout components
 └── providers/             # React Context providers
+
+utils/
+├── StorageManager.ts      # Data persistence management
+├── FileSystemStorage.ts   # Advanced image storage system
+└── index.ts              # Utility exports
 
 types/
 └── index.ts              # TypeScript interfaces (includes ReceiptPhoto)
 
 constants/
 ├── Colors.ts             # Theme colors
-└── Currencies.ts         # Currency definitions
+├── Currencies.ts         # Currency definitions
+└── BillCategories.ts     # Expense categories
 ```
 
 ## 🚀 Future Enhancements
@@ -415,6 +460,10 @@ constants/
 ### 📋 Planned Features
 1. **🌐 Multi-language support** for international travelers
 2. **🔄 Automatic exchange rate updates** via API integration
+3. **📊 Expense analytics** with charts and spending patterns
+4. **☁️ Cloud backup** for data synchronization across devices
+5. **👥 Multi-device collaboration** for real-time bill splitting
+6. **🧾 OCR receipt scanning** for automatic bill amount detection
 
 ---
 
