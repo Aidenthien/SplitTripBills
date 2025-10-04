@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
     StyleSheet,
     FlatList,
@@ -7,6 +7,8 @@ import {
     TextInput,
     Modal,
     ScrollView,
+    Animated,
+    Dimensions,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +19,7 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import ScreenTransition from '@/ui/components/ScreenTransition';
 import Calculator from '@/ui/components/Calculator';
+import BillSplitSummary from '@/ui/components/BillSplitSummary';
 import { BILL_CATEGORIES } from '@/constants/BillCategories';
 import { StorageManager } from '@/utils/StorageManager';
 
@@ -24,6 +27,13 @@ export default function TripDashboardScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
     const [trip, setTrip] = useState<Trip | null>(null);
     const [calculatorVisible, setCalculatorVisible] = useState(false);
+    const [activeTab, setActiveTab] = useState<'bills' | 'summary'>('bills');
+    const [summaryDate, setSummaryDate] = useState<Date | null>(new Date());
+
+    // Animation values
+    const slideAnimation = useRef(new Animated.Value(0)).current;
+    const fadeAnimation = useRef(new Animated.Value(1)).current;
+    const tabIndicatorAnimation = useRef(new Animated.Value(0)).current;
     const [searchQuery, setSearchQuery] = useState('');
     const [filterModalVisible, setFilterModalVisible] = useState(false);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -95,6 +105,55 @@ export default function TripDashboardScreen() {
                 tripId,
                 billId: bill.id
             }
+        });
+    };
+
+    // Tab switching animation
+    const switchTab = (newTab: 'bills' | 'summary') => {
+        if (newTab === activeTab) return;
+
+        const isMovingToSummary = newTab === 'summary';
+
+        // Animate tab indicator
+        Animated.timing(tabIndicatorAnimation, {
+            toValue: isMovingToSummary ? 1 : 0,
+            duration: 300,
+            useNativeDriver: false,
+        }).start();
+
+        // Animate content transition
+        Animated.parallel([
+            // Fade out current content
+            Animated.timing(fadeAnimation, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+            }),
+            // Slide content
+            Animated.timing(slideAnimation, {
+                toValue: isMovingToSummary ? -20 : 20,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start(() => {
+            // Change tab
+            setActiveTab(newTab);
+
+            // Reset slide position and fade in new content
+            slideAnimation.setValue(isMovingToSummary ? 20 : -20);
+
+            Animated.parallel([
+                Animated.timing(fadeAnimation, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(slideAnimation, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                }),
+            ]).start();
         });
     };
 
@@ -318,122 +377,200 @@ export default function TripDashboardScreen() {
                     </View>
                 </View>
 
-                {/* Search and Filter Section */}
-                <View style={[styles.searchFilterSection, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-                    {/* Search Bar */}
-                    <View style={[styles.searchContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-                        <View style={[styles.searchBar, {
-                            backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7',
-                            borderColor: Colors[colorScheme ?? 'light'].text + '20'
-                        }]}>
-                            <FontAwesome name="search" size={16} color={Colors[colorScheme ?? 'light'].text + '60'} />
-                            <TextInput
-                                style={[styles.searchInput, { color: Colors[colorScheme ?? 'light'].text }]}
-                                placeholder="Search bills..."
-                                placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                            />
-                            {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                    <FontAwesome name="times-circle" size={16} color={Colors[colorScheme ?? 'light'].text + '60'} />
+                {/* Tab Navigation */}
+                <View style={[styles.tabContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                    <TouchableOpacity
+                        style={[
+                            styles.tab,
+                            activeTab === 'bills' && styles.activeTab,
+                            { borderBottomColor: activeTab === 'bills' ? '#007AFF' : 'transparent' }
+                        ]}
+                        onPress={() => switchTab('bills')}
+                    >
+                        <FontAwesome
+                            name="list"
+                            size={16}
+                            color={activeTab === 'bills' ? '#007AFF' : Colors[colorScheme ?? 'light'].text + '60'}
+                        />
+                        <Text style={[
+                            styles.tabText,
+                            { color: activeTab === 'bills' ? '#007AFF' : Colors[colorScheme ?? 'light'].text + '60' }
+                        ]}>
+                            Bills
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.tab,
+                            activeTab === 'summary' && styles.activeTab,
+                            { borderBottomColor: activeTab === 'summary' ? '#007AFF' : 'transparent' }
+                        ]}
+                        onPress={() => switchTab('summary')}
+                    >
+                        <FontAwesome
+                            name="bar-chart"
+                            size={16}
+                            color={activeTab === 'summary' ? '#007AFF' : Colors[colorScheme ?? 'light'].text + '60'}
+                        />
+                        <Text style={[
+                            styles.tabText,
+                            { color: activeTab === 'summary' ? '#007AFF' : Colors[colorScheme ?? 'light'].text + '60' }
+                        ]}>
+                            Summary
+                        </Text>
+                    </TouchableOpacity>
+
+                    {/* Animated Tab Indicator */}
+                    <Animated.View
+                        style={[
+                            styles.tabIndicator,
+                            {
+                                left: tabIndicatorAnimation.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: ['0%', '50%'],
+                                }),
+                                backgroundColor: '#007AFF',
+                            }
+                        ]}
+                    />
+                </View>
+
+                {/* Search and Filter Section - Only show for Bills tab */}
+                {activeTab === 'bills' && (
+                    <View style={[styles.searchFilterSection, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                        {/* Search Bar */}
+                        <View style={[styles.searchContainer, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                            <View style={[styles.searchBar, {
+                                backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7',
+                                borderColor: Colors[colorScheme ?? 'light'].text + '20'
+                            }]}>
+                                <FontAwesome name="search" size={16} color={Colors[colorScheme ?? 'light'].text + '60'} />
+                                <TextInput
+                                    style={[styles.searchInput, { color: Colors[colorScheme ?? 'light'].text }]}
+                                    placeholder="Search bills..."
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
+                                {searchQuery.length > 0 && (
+                                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                        <FontAwesome name="times-circle" size={16} color={Colors[colorScheme ?? 'light'].text + '60'} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+
+                        {/* Filter Controls */}
+                        <View style={styles.filterControls}>
+                            <TouchableOpacity
+                                style={[styles.filterButton, {
+                                    backgroundColor: hasActiveFilters ? '#007AFF' : (colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7'),
+                                    borderColor: Colors[colorScheme ?? 'light'].text + '20'
+                                }]}
+                                onPress={() => setFilterModalVisible(true)}
+                            >
+                                <FontAwesome
+                                    name="filter"
+                                    size={14}
+                                    color={hasActiveFilters ? 'white' : Colors[colorScheme ?? 'light'].text + '80'}
+                                />
+                                <Text style={[styles.filterButtonText, {
+                                    color: hasActiveFilters ? 'white' : Colors[colorScheme ?? 'light'].text + '80'
+                                }]}>Filter</Text>
+                                {hasActiveFilters && (
+                                    <View style={styles.filterBadge}>
+                                        <Text style={styles.filterBadgeText}>
+                                            {(selectedCategories.length + ((startDate || endDate) ? 1 : 0))}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+
+                            {hasActiveFilters && (
+                                <TouchableOpacity
+                                    style={[styles.clearButton, {
+                                        backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7',
+                                        borderColor: Colors[colorScheme ?? 'light'].text + '20'
+                                    }]}
+                                    onPress={clearAllFilters}
+                                >
+                                    <FontAwesome name="times" size={12} color={Colors[colorScheme ?? 'light'].text + '80'} />
+                                    <Text style={[styles.clearButtonText, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>Clear</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
-                    </View>
 
-                    {/* Filter Controls */}
-                    <View style={styles.filterControls}>
-                        <TouchableOpacity
-                            style={[styles.filterButton, {
-                                backgroundColor: hasActiveFilters ? '#007AFF' : (colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7'),
-                                borderColor: Colors[colorScheme ?? 'light'].text + '20'
-                            }]}
-                            onPress={() => setFilterModalVisible(true)}
-                        >
-                            <FontAwesome
-                                name="filter"
-                                size={14}
-                                color={hasActiveFilters ? 'white' : Colors[colorScheme ?? 'light'].text + '80'}
-                            />
-                            <Text style={[styles.filterButtonText, {
-                                color: hasActiveFilters ? 'white' : Colors[colorScheme ?? 'light'].text + '80'
-                            }]}>Filter</Text>
-                            {hasActiveFilters && (
-                                <View style={styles.filterBadge}>
-                                    <Text style={styles.filterBadgeText}>
-                                        {(selectedCategories.length + ((startDate || endDate) ? 1 : 0))}
-                                    </Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-
+                        {/* Active Filters Display */}
                         {hasActiveFilters && (
-                            <TouchableOpacity
-                                style={[styles.clearButton, {
-                                    backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7',
-                                    borderColor: Colors[colorScheme ?? 'light'].text + '20'
-                                }]}
-                                onPress={clearAllFilters}
-                            >
-                                <FontAwesome name="times" size={12} color={Colors[colorScheme ?? 'light'].text + '80'} />
-                                <Text style={[styles.clearButtonText, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>Clear</Text>
-                            </TouchableOpacity>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFilters}>
+                                {selectedCategories.map(categoryId => {
+                                    const category = BILL_CATEGORIES.find(c => c.id === categoryId);
+                                    return category ? (
+                                        <View key={categoryId} style={[styles.activeFilterChip, { backgroundColor: category.color + '20' }]}>
+                                            <FontAwesome name={category.icon as any} size={10} color={category.color} />
+                                            <Text style={[styles.activeFilterText, { color: category.color }]}>{category.name}</Text>
+                                        </View>
+                                    ) : null;
+                                })}
+                                {(startDate || endDate) && (
+                                    <View style={[styles.activeFilterChip, { backgroundColor: '#007AFF20' }]}>
+                                        <FontAwesome name="calendar" size={10} color="#007AFF" />
+                                        <Text style={[styles.activeFilterText, { color: '#007AFF' }]}>
+                                            {getDateRangeText()}
+                                        </Text>
+                                    </View>
+                                )}
+                            </ScrollView>
                         )}
                     </View>
+                )}
 
-                    {/* Active Filters Display */}
-                    {hasActiveFilters && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFilters}>
-                            {selectedCategories.map(categoryId => {
-                                const category = BILL_CATEGORIES.find(c => c.id === categoryId);
-                                return category ? (
-                                    <View key={categoryId} style={[styles.activeFilterChip, { backgroundColor: category.color + '20' }]}>
-                                        <FontAwesome name={category.icon as any} size={10} color={category.color} />
-                                        <Text style={[styles.activeFilterText, { color: category.color }]}>{category.name}</Text>
-                                    </View>
-                                ) : null;
-                            })}
-                            {(startDate || endDate) && (
-                                <View style={[styles.activeFilterChip, { backgroundColor: '#007AFF20' }]}>
-                                    <FontAwesome name="calendar" size={10} color="#007AFF" />
-                                    <Text style={[styles.activeFilterText, { color: '#007AFF' }]}>
-                                        {getDateRangeText()}
+                <Animated.View
+                    style={[
+                        styles.animatedContent,
+                        {
+                            opacity: fadeAnimation,
+                            transform: [{ translateX: slideAnimation }],
+                        }
+                    ]}
+                >
+                    {activeTab === 'bills' ? (
+                        <View style={styles.content}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Split Bills</Text>
+                                <TouchableOpacity style={styles.addButton} onPress={createNewBill}>
+                                    <FontAwesome name="plus" size={16} color="white" />
+                                    <Text style={styles.addButtonText}>New Bill</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {filteredBills.length === 0 ? (
+                                <View style={styles.emptyState}>
+                                    <FontAwesome name="file-text-o" size={64} color="#ccc" />
+                                    <Text style={styles.emptyText}>
+                                        {trip.bills.length === 0 ? 'No bills yet' : 'No bills match your search'}
+                                    </Text>
+                                    <Text style={styles.emptySubtext}>
+                                        {trip.bills.length === 0 ? 'Create your first split bill' : 'Try adjusting your search or filters'}
                                     </Text>
                                 </View>
+                            ) : (
+                                <FlatList
+                                    data={filteredBills}
+                                    renderItem={renderBillCard}
+                                    keyExtractor={(item) => item.id}
+                                    showsVerticalScrollIndicator={false}
+                                />
                             )}
-                        </ScrollView>
-                    )}
-                </View>
-
-                <View style={styles.content}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Split Bills</Text>
-                        <TouchableOpacity style={styles.addButton} onPress={createNewBill}>
-                            <FontAwesome name="plus" size={16} color="white" />
-                            <Text style={styles.addButtonText}>New Bill</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {filteredBills.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <FontAwesome name="file-text-o" size={64} color="#ccc" />
-                            <Text style={styles.emptyText}>
-                                {trip.bills.length === 0 ? 'No bills yet' : 'No bills match your search'}
-                            </Text>
-                            <Text style={styles.emptySubtext}>
-                                {trip.bills.length === 0 ? 'Create your first split bill' : 'Try adjusting your search or filters'}
-                            </Text>
                         </View>
                     ) : (
-                        <FlatList
-                            data={filteredBills}
-                            renderItem={renderBillCard}
-                            keyExtractor={(item) => item.id}
-                            showsVerticalScrollIndicator={false}
+                        <BillSplitSummary
+                            trip={trip}
+                            selectedDate={summaryDate}
+                            onDateChange={setSummaryDate}
                         />
                     )}
-                </View>
+                </Animated.View>
             </SafeAreaView>
 
             {/* Filter Modal */}
@@ -700,6 +837,42 @@ const styles = StyleSheet.create({
     exchangeRate: {
         fontSize: 14,
         color: '#888',
+    },
+    // Tab Navigation Styles
+    tabContainer: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        position: 'relative',
+    },
+    tab: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderBottomWidth: 2,
+        gap: 8,
+        zIndex: 1,
+    },
+    activeTab: {
+        borderBottomWidth: 2,
+    },
+    tabText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        width: '50%',
+        height: 3,
+        borderRadius: 2,
+        zIndex: 0,
+    },
+    animatedContent: {
+        flex: 1,
     },
     content: {
         flex: 1,

@@ -326,48 +326,65 @@ export default function BillSummaryScreen() {
                             {paymentSummary.map((payment, index) => (
                                 <View key={payment.travelerId} style={[
                                     styles.paymentCard,
-                                    { backgroundColor: Colors[colorScheme ?? 'light'].card }
+                                    {
+                                        backgroundColor: Colors[colorScheme ?? 'light'].card,
+                                        shadowColor: Colors[colorScheme ?? 'light'].text,
+                                        borderLeftColor: Colors[colorScheme ?? 'light'].primary,
+                                    }
                                 ]}>
                                     <View style={styles.paymentHeader}>
                                         <View style={styles.debtorSection}>
                                             <View style={[
                                                 styles.personIcon,
-                                                { backgroundColor: Colors[colorScheme ?? 'light'].surface }
+                                                {
+                                                    backgroundColor: '#FF6B6B20',
+                                                    shadowColor: Colors[colorScheme ?? 'light'].text,
+                                                }
                                             ]}>
                                                 <FontAwesome name="user" size={16} color="#FF6B6B" />
                                             </View>
-                                            <Text style={styles.debtorName}>{payment.travelerName}</Text>
+                                            <Text style={[styles.debtorName, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                                {payment.travelerName}
+                                            </Text>
                                         </View>
 
                                         <View style={styles.arrowSection}>
-                                            <FontAwesome name="long-arrow-right" size={20} color="#4ECDC4" />
-                                            <Text style={styles.owesText}>owes</Text>
+                                            <FontAwesome name="long-arrow-right" size={20} color={Colors[colorScheme ?? 'light'].primary} />
+                                            <Text style={[styles.owesText, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>owes</Text>
                                         </View>
 
                                         <View style={styles.creditorSection}>
                                             <View style={[
                                                 styles.personIcon,
-                                                { backgroundColor: Colors[colorScheme ?? 'light'].surface }
+                                                {
+                                                    backgroundColor: '#4CAF5020',
+                                                    shadowColor: Colors[colorScheme ?? 'light'].text,
+                                                }
                                             ]}>
                                                 <FontAwesome name="user" size={16} color="#4CAF50" />
                                             </View>
-                                            <Text style={styles.creditorName}>{payment.owesToName}</Text>
+                                            <Text style={[styles.creditorName, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                                {payment.owesToName}
+                                            </Text>
                                         </View>
                                     </View>
 
                                     <View style={[
                                         styles.amountSection,
-                                        { backgroundColor: Colors[colorScheme ?? 'light'].surface }
+                                        {
+                                            backgroundColor: Colors[colorScheme ?? 'light'].surface,
+                                            borderColor: Colors[colorScheme ?? 'light'].text + '20',
+                                        }
                                     ]}>
                                         <View style={styles.primaryAmount}>
                                             <FontAwesome name="money" size={16} color="#FF9500" />
-                                            <Text style={styles.paymentAmount}>
+                                            <Text style={[styles.paymentAmount, { color: Colors[colorScheme ?? 'light'].text }]}>
                                                 {trip.targetCurrency.symbol}{payment.totalOwed.toFixed(2)} {trip.targetCurrency.code}
                                             </Text>
                                         </View>
                                         <View style={styles.convertedAmount}>
-                                            <FontAwesome name="exchange" size={12} color="#666" />
-                                            <Text style={styles.paymentAmountMYR}>
+                                            <FontAwesome name="exchange" size={12} color={Colors[colorScheme ?? 'light'].text + '60'} />
+                                            <Text style={[styles.paymentAmountMYR, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
                                                 RM {payment.totalOwedMYR.toFixed(2)}
                                             </Text>
                                         </View>
@@ -601,12 +618,10 @@ const styles = StyleSheet.create({
     paymentAmount: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#FF9500',
         marginLeft: 8,
     },
     paymentAmountMYR: {
         fontSize: 14,
-        color: '#666',
         marginLeft: 8,
     },
     paymentStatus: {
@@ -618,12 +633,10 @@ const styles = StyleSheet.create({
         padding: 16,
         marginBottom: 12,
         borderLeftWidth: 4,
-        borderLeftColor: '#4ECDC4',
         elevation: 2,
-        shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
     },
     paymentHeader: {
         flexDirection: 'row',
@@ -654,24 +667,20 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginRight: 8,
         elevation: 1,
-        shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1,
+        shadowOpacity: 0.06,
+        shadowRadius: 2,
     },
     debtorName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#FF6B6B',
     },
     creditorName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#4CAF50',
     },
     owesText: {
         fontSize: 12,
-        color: '#666',
         marginTop: 2,
         fontStyle: 'italic',
     },
@@ -679,6 +688,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 12,
         marginBottom: 12,
+        borderWidth: 1,
     },
     primaryAmount: {
         flexDirection: 'row',
