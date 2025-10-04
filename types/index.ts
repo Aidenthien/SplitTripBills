@@ -42,6 +42,7 @@ export interface Bill {
     description: string;
     category: BillCategory;
     totalAmount: number; // In target currency
+    additionalCharges?: number; // Optional additional charges (tax, service charge, etc.) in target currency
     payerId: string; // Who paid originally
     splits: BillSplit[];
     receiptPhotos?: ReceiptPhoto[]; // Optional receipt attachments

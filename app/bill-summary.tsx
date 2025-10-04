@@ -256,9 +256,28 @@ export default function BillSummaryScreen() {
                     <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
                         <Text style={styles.sectionTitle}>Bill Summary</Text>
 
+                        {/* Base Amount */}
                         <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Total Amount:</Text>
+                            <Text style={styles.summaryLabel}>Base Amount:</Text>
                             <Text style={styles.summaryValue}>
+                                {trip.targetCurrency.symbol}{(bill.totalAmount - (bill.additionalCharges || 0)).toFixed(2)} {trip.targetCurrency.code}
+                            </Text>
+                        </View>
+
+                        {/* Additional Charges */}
+                        {bill.additionalCharges && bill.additionalCharges > 0 && (
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Additional Charges:</Text>
+                                <Text style={styles.summaryValue}>
+                                    {trip.targetCurrency.symbol}{bill.additionalCharges.toFixed(2)} {trip.targetCurrency.code}
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* Total Amount */}
+                        <View style={[styles.summaryRow, styles.totalRow]}>
+                            <Text style={[styles.summaryLabel, styles.totalLabel]}>Total Amount:</Text>
+                            <Text style={[styles.summaryValue, styles.totalValue]}>
                                 {trip.targetCurrency.symbol}{bill.totalAmount.toFixed(2)} {trip.targetCurrency.code}
                             </Text>
                         </View>
@@ -552,6 +571,21 @@ const styles = StyleSheet.create({
     summaryValue: {
         fontSize: 16,
         fontWeight: '600',
+    },
+    totalRow: {
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
+        paddingTop: 8,
+        marginTop: 8,
+    },
+    totalLabel: {
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    totalValue: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#007AFF',
     },
     splitRow: {
         flexDirection: 'row',

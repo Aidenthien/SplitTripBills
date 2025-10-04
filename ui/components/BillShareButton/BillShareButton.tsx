@@ -137,6 +137,21 @@ export default function BillShareButton({
                     font-weight: 600;
                     color: #333;
                 }
+                .total-row {
+                    border-top: 2px solid #007AFF;
+                    margin-top: 8px;
+                    padding-top: 12px;
+                }
+                .total-label {
+                    font-weight: 700;
+                    font-size: 18px;
+                    color: #007AFF;
+                }
+                .total-value {
+                    font-weight: 700;
+                    font-size: 18px;
+                    color: #007AFF;
+                }
                 .split-row { 
                     display: flex;
                     justify-content: space-between;
@@ -254,8 +269,18 @@ export default function BillShareButton({
                 <div class="section">
                     <h3>💰 Bill Details</h3>
                     <div class="detail-row">
-                        <span class="detail-label">Total Amount</span>
-                        <span class="detail-value">${trip.targetCurrency.symbol}${bill.totalAmount.toFixed(2)} ${trip.targetCurrency.code}</span>
+                        <span class="detail-label">Base Amount</span>
+                        <span class="detail-value">${trip.targetCurrency.symbol}${(bill.totalAmount - (bill.additionalCharges || 0)).toFixed(2)} ${trip.targetCurrency.code}</span>
+                    </div>
+                    ${bill.additionalCharges && bill.additionalCharges > 0 ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Additional Charges</span>
+                        <span class="detail-value">${trip.targetCurrency.symbol}${bill.additionalCharges.toFixed(2)} ${trip.targetCurrency.code}</span>
+                    </div>
+                    ` : ''}
+                    <div class="detail-row total-row">
+                        <span class="detail-label total-label">Total Amount</span>
+                        <span class="detail-value total-value">${trip.targetCurrency.symbol}${bill.totalAmount.toFixed(2)} ${trip.targetCurrency.code}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Amount (MYR)</span>

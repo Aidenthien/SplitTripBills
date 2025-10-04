@@ -29,6 +29,7 @@ export default function CreateBillScreen() {
     const [selectedCategory, setSelectedCategory] = useState<BillCategory>(getDefaultCategory());
     const [receiptPhotos, setReceiptPhotos] = useState<ReceiptPhoto[]>([]);
     const [totalAmount, setTotalAmount] = useState('');
+    const [additionalCharges, setAdditionalCharges] = useState('');
     const [payerId, setPayerId] = useState('');
     const [travelerAmounts, setTravelerAmounts] = useState<{ [key: string]: string }>({});
     const colorScheme = useColorScheme();
@@ -106,6 +107,9 @@ export default function CreateBillScreen() {
         }
 
         const billTotal = parseFloat(totalAmount);
+        const additionalChargesValue = additionalCharges ? parseFloat(additionalCharges) : 0;
+
+        // Validate that split amounts match the base bill total (not including additional charges)
         if (Math.abs(totalSplitAmount - billTotal) > 0.01) {
             showWarning(
                 `Total split amount (${totalSplitAmount.toFixed(2)}) doesn't match bill total (${billTotal.toFixed(2)})`
@@ -119,14 +123,24 @@ export default function CreateBillScreen() {
 
             if (tripIndex !== -1) {
                 const newBillId = Date.now().toString();
+
+                // Add additional charges equally to each traveler's split
+                const chargesPerPerson = additionalChargesValue / trip!.travelers.length;
+                const updatedSplits = splits.map(split => ({
+                    ...split,
+                    amount: split.amount + chargesPerPerson,
+                    amountMYR: (split.amount + chargesPerPerson) / trip!.exchangeRate
+                }));
+
                 const newBill: Bill = {
                     id: newBillId,
                     tripId: tripId!,
                     description: description.trim(),
                     category: selectedCategory,
-                    totalAmount: billTotal,
+                    totalAmount: billTotal + additionalChargesValue, // Total includes additional charges
+                    additionalCharges: additionalChargesValue > 0 ? additionalChargesValue : undefined,
                     payerId,
-                    splits,
+                    splits: updatedSplits,
                     createdAt: new Date(),
                 };
 
@@ -238,6 +252,27 @@ export default function CreateBillScreen() {
                             placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
                             value={totalAmount}
                             onChangeText={setTotalAmount}
+                            keyboardType="numeric"
+                        />
+
+                        <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
+                            Additional Charges (Optional)
+                        </Text>
+                        <Text style={[styles.chargesSubtitle, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                            Tax, service charge, etc. - will be split equally among all travelers when bill is created
+                        </Text>
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    color: Colors[colorScheme ?? 'light'].text,
+                                    borderColor: Colors[colorScheme ?? 'light'].text + '40'
+                                }
+                            ]}
+                            placeholder="0.00"
+                            placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                            value={additionalCharges}
+                            onChangeText={setAdditionalCharges}
                             keyboardType="numeric"
                         />
                     </View>
@@ -454,5 +489,9 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 18,
         fontWeight: '600',
+    },
+    chargesSubtitle: {
+        fontSize: 12,
+        marginBottom: 8,
     },
 });
