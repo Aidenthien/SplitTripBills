@@ -37,11 +37,17 @@ export const createToastStyles = (theme: Theme) =>
 
         iconContainer: {
             marginRight: theme.spacing[3],
-            width: 32,
-            height: 32,
-            borderRadius: 16,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
             justifyContent: 'center',
             alignItems: 'center',
+            // Add subtle shadow for better visibility
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 2,
         },
 
         textContainer: {
@@ -119,21 +125,29 @@ export const createToastStyles = (theme: Theme) =>
             backgroundColor: theme.colors.card,
         },
 
-        // Icon container variants
+        // Icon container variants - more vibrant backgrounds
         successIcon: {
-            backgroundColor: theme.colors.successLight,
+            backgroundColor: '#E8F5E8',
+            borderWidth: 1,
+            borderColor: theme.colors.success,
         },
 
         errorIcon: {
-            backgroundColor: theme.colors.errorLight,
+            backgroundColor: '#FFEBEE',
+            borderWidth: 1,
+            borderColor: theme.colors.error,
         },
 
         warningIcon: {
-            backgroundColor: theme.colors.warningLight,
+            backgroundColor: '#FFF3E0',
+            borderWidth: 1,
+            borderColor: theme.colors.warning,
         },
 
         infoIcon: {
-            backgroundColor: theme.colors.infoLight,
+            backgroundColor: '#E3F2FD',
+            borderWidth: 1,
+            borderColor: theme.colors.info,
         },
 
         // Progress bar styles

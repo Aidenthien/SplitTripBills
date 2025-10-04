@@ -169,8 +169,19 @@ export default function Toast({ notification, onDismiss }: ToastProps) {
     };
 
     const getIconColor = () => {
-        // Use white icons on colored backgrounds for better contrast
-        return '#FFFFFF';
+        // Use vibrant colors that match the notification type for better visibility
+        switch (notification.type) {
+            case 'success':
+                return theme.colors.success;
+            case 'error':
+                return theme.colors.error;
+            case 'warning':
+                return theme.colors.warning;
+            case 'info':
+                return theme.colors.info;
+            default:
+                return theme.colors.primary;
+        }
     };
 
     const getProgressBarColor = () => {
@@ -207,7 +218,7 @@ export default function Toast({ notification, onDismiss }: ToastProps) {
                 <View style={[styles.iconContainer, getIconContainerStyle()]}>
                     <Icon
                         name={getToastIcon(notification.type)}
-                        size={20}
+                        size={22}
                         color={getIconColor()}
                     />
                 </View>

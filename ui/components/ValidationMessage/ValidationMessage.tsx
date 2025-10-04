@@ -83,7 +83,7 @@ export default function ValidationMessage({
     return (
         <View style={[styles.container, style]}>
             <View style={styles.icon}>
-                <Icon name={getIcon()} size={16} color={getColor()} />
+                <Icon name={getIcon()} size={18} color={getColor()} />
             </View>
             <Text style={styles.message}>{message}</Text>
         </View>
