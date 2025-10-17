@@ -31,9 +31,18 @@ export interface Trip {
     travelers: Traveler[];
     baseCurrency: Currency; // Malaysia MYR
     targetCurrency: Currency; // Target country currency
-    exchangeRate: number; // Rate from base to target
+    exchangeRate: number; // Deprecated: kept for backward compatibility
+    cardExchangeRate: number; // Current/primary card rate (0 if not used)
+    cashExchangeRate: number; // Rate for cash payments (0 if not used)
     createdAt: Date;
     bills: Bill[];
+}
+
+export interface MixedRatePayment {
+    oldRate: number;
+    oldAmount: number; // Amount paid using old rate
+    newRate: number;
+    newAmount: number; // Amount paid using new rate
 }
 
 export interface Bill {
@@ -46,6 +55,9 @@ export interface Bill {
     payerId: string; // Who paid originally
     splits: BillSplit[];
     receiptPhotos?: ReceiptPhoto[]; // Optional receipt attachments
+    paymentMethod: 'cash' | 'card'; // Payment method used
+    customExchangeRate?: number; // Single exchange rate (if not mixed)
+    mixedRates?: MixedRatePayment; // Used when paying with multiple card rates
     createdAt: Date;
 }
 

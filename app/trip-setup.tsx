@@ -26,7 +26,8 @@ export default function TripSetupScreen() {
     const [travelers, setTravelers] = useState<Traveler[]>([]);
     const [newTravelerName, setNewTravelerName] = useState('');
     const [selectedTargetCurrency, setSelectedTargetCurrency] = useState<Currency>(CURRENCIES[1]);
-    const [exchangeRate, setExchangeRate] = useState('');
+    const [cardExchangeRate, setCardExchangeRate] = useState('');
+    const [cashExchangeRate, setCashExchangeRate] = useState('');
     const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
     const colorScheme = useColorScheme();
     const { showError, showSuccess } = useNotification();
@@ -43,7 +44,9 @@ export default function TripSetupScreen() {
                 setTrip(foundTrip);
                 setTravelers(foundTrip.travelers);
                 setSelectedTargetCurrency(foundTrip.targetCurrency);
-                setExchangeRate(foundTrip.exchangeRate.toString());
+                // Load new rate fields, fallback to old exchangeRate for backward compatibility
+                setCardExchangeRate((foundTrip.cardExchangeRate || foundTrip.exchangeRate || 0).toString());
+                setCashExchangeRate((foundTrip.cashExchangeRate || 0).toString());
             }
         } catch (error) {
             console.error('Error loading trip:', error);
@@ -75,8 +78,24 @@ export default function TripSetupScreen() {
             return;
         }
 
-        if (!exchangeRate || isNaN(parseFloat(exchangeRate)) || parseFloat(exchangeRate) <= 0) {
-            showError('Please enter a valid exchange rate');
+        const cardRate = parseFloat(cardExchangeRate) || 0;
+        const cashRate = parseFloat(cashExchangeRate) || 0;
+
+        // Validate that at least one rate is set
+        if (cardRate <= 0 && cashRate <= 0) {
+            showError('Please enter at least one exchange rate (Card or Cash)');
+            return;
+        }
+
+        // Validate card rate if provided
+        if (cardExchangeRate && (isNaN(cardRate) || cardRate < 0)) {
+            showError('Please enter a valid card exchange rate');
+            return;
+        }
+
+        // Validate cash rate if provided
+        if (cashExchangeRate && (isNaN(cashRate) || cashRate < 0)) {
+            showError('Please enter a valid cash exchange rate');
             return;
         }
 
@@ -89,7 +108,9 @@ export default function TripSetupScreen() {
                     ...trips[tripIndex],
                     travelers,
                     targetCurrency: selectedTargetCurrency,
-                    exchangeRate: parseFloat(exchangeRate),
+                    exchangeRate: cardRate > 0 ? cardRate : cashRate, // For backward compatibility
+                    cardExchangeRate: cardRate,
+                    cashExchangeRate: cashRate,
                 };
 
                 await StorageManager.saveTrips(trips);
@@ -243,24 +264,62 @@ export default function TripSetupScreen() {
                         )}
 
                         <View style={styles.exchangeRateSection}>
-                            <Text style={styles.currencyLabel}>Exchange Rate</Text>
+                            <Text style={styles.currencyLabel}>Exchange Rates</Text>
                             <Text style={styles.exchangeHelp}>
-                                1 {DEFAULT_BASE_CURRENCY.code} = ? {selectedTargetCurrency.code}
+                                Set exchange rates for payment methods you'll use. Leave as 0 if not applicable.
                             </Text>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    {
-                                        color: Colors[colorScheme ?? 'light'].text,
-                                        borderColor: Colors[colorScheme ?? 'light'].text + '40'
-                                    }
-                                ]}
-                                placeholder={`e.g., 331.65 (for ${selectedTargetCurrency.code})`}
-                                placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
-                                value={exchangeRate}
-                                onChangeText={setExchangeRate}
-                                keyboardType="numeric"
-                            />
+                            
+                            {/* Card Exchange Rate */}
+                            <View style={styles.rateInputContainer}>
+                                <View style={styles.rateHeader}>
+                                    <FontAwesome name="credit-card" size={16} color="#007AFF" />
+                                    <Text style={[styles.rateLabel, { color: Colors[colorScheme ?? 'light'].text }]}>Card Payment Rate</Text>
+                                </View>
+                                <Text style={[styles.rateHelp, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                    1 {DEFAULT_BASE_CURRENCY.code} = ? {selectedTargetCurrency.code}
+                                </Text>
+                                <TextInput
+                                    style={[
+                                        styles.input,
+                                        {
+                                            color: Colors[colorScheme ?? 'light'].text,
+                                            borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                            backgroundColor: Colors[colorScheme ?? 'light'].background
+                                        }
+                                    ]}
+                                    placeholder={`e.g., 331.65 (0 to disable card payments)`}
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={cardExchangeRate}
+                                    onChangeText={setCardExchangeRate}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            {/* Cash Exchange Rate */}
+                            <View style={styles.rateInputContainer}>
+                                <View style={styles.rateHeader}>
+                                    <FontAwesome name="money" size={16} color="#FF9500" />
+                                    <Text style={[styles.rateLabel, { color: Colors[colorScheme ?? 'light'].text }]}>Cash Payment Rate</Text>
+                                </View>
+                                <Text style={[styles.rateHelp, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                    1 {DEFAULT_BASE_CURRENCY.code} = ? {selectedTargetCurrency.code}
+                                </Text>
+                                <TextInput
+                                    style={[
+                                        styles.input,
+                                        {
+                                            color: Colors[colorScheme ?? 'light'].text,
+                                            borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                            backgroundColor: Colors[colorScheme ?? 'light'].background
+                                        }
+                                    ]}
+                                    placeholder={`e.g., 325.00 (0 to disable cash payments)`}
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={cashExchangeRate}
+                                    onChangeText={setCashExchangeRate}
+                                    keyboardType="numeric"
+                                />
+                            </View>
                         </View>
                     </View>
 
@@ -380,6 +439,26 @@ const styles = StyleSheet.create({
     },
     exchangeHelp: {
         fontSize: 12,
+        color: '#666',
+        marginBottom: 16,
+    },
+    rateInputContainer: {
+        marginBottom: 16,
+        padding: 12,
+        borderRadius: 8,
+    },
+    rateHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+    },
+    rateLabel: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    rateHelp: {
+        fontSize: 11,
         color: '#666',
         marginBottom: 8,
     },

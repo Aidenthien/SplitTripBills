@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
 
 import { Text, View } from '@/components/Themed';
-import { Trip, Bill, PaymentSummary } from '@/types';
+import { Trip, Bill, PaymentSummary, MixedRatePayment } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { BillShareButton } from '@/ui/components';
@@ -129,6 +129,7 @@ export default function BillSummaryScreen() {
     }
 
     const payer = trip.travelers.find(t => t.id === bill.payerId);
+    const paymentMethod = bill.paymentMethod || 'card'; // Default to card for backward compatibility
 
     return (
         <SafeAreaView style={styles.container}>
@@ -256,6 +257,24 @@ export default function BillSummaryScreen() {
                     <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
                         <Text style={styles.sectionTitle}>Bill Summary</Text>
 
+                        {/* Payment Method and Exchange Rate Info */}
+                        <View style={styles.billMetaBadges}>
+                            <View style={[styles.metaBadge, {
+                                backgroundColor: paymentMethod === 'cash' ? '#FF950020' : '#007AFF20'
+                            }]}>
+                                <FontAwesome 
+                                    name={paymentMethod === 'cash' ? 'money' : 'credit-card'} 
+                                    size={14} 
+                                    color={paymentMethod === 'cash' ? '#FF9500' : '#007AFF'} 
+                                />
+                                <Text style={[styles.metaBadgeText, {
+                                    color: paymentMethod === 'cash' ? '#FF9500' : '#007AFF'
+                                }]}>
+                                    {paymentMethod === 'cash' ? 'Cash Payment' : 'Card Payment'}
+                                </Text>
+                            </View>
+                        </View>
+
                         {/* Base Amount */}
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Base Amount:</Text>
@@ -285,7 +304,7 @@ export default function BillSummaryScreen() {
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Total Amount (MYR):</Text>
                             <Text style={styles.summaryValue}>
-                                RM {(bill.totalAmount / trip.exchangeRate).toFixed(2)}
+                                RM {(bill.totalAmount / (bill.customExchangeRate || trip.exchangeRate)).toFixed(2)}
                             </Text>
                         </View>
 
@@ -294,12 +313,45 @@ export default function BillSummaryScreen() {
                             <Text style={styles.summaryValue}>{payer?.name}</Text>
                         </View>
 
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Exchange Rate:</Text>
-                            <Text style={styles.summaryValue}>
-                                1 {trip.baseCurrency.code} = {trip.exchangeRate} {trip.targetCurrency.code}
-                            </Text>
-                        </View>
+                        {/* Show mixed rates if applicable */}
+                        {bill.mixedRates ? (
+                            <>
+                                <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryLabel}>Payment Type:</Text>
+                                    <Text style={[styles.summaryValue, { color: '#34C759', fontWeight: 'bold' }]}>
+                                        Mixed Exchange Rates
+                                    </Text>
+                                </View>
+                                <View style={styles.mixedRatesBreakdown}>
+                                    <Text style={[styles.mixedRatesTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                        Payment Breakdown:
+                                    </Text>
+                                    <View style={styles.mixedRateItem}>
+                                        <Text style={[styles.mixedRateAmount, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                            • {bill.mixedRates.oldAmount.toFixed(2)} {trip.targetCurrency.code}
+                                        </Text>
+                                        <Text style={[styles.mixedRateDetail, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                            @ Rate: {bill.mixedRates.oldRate} (Old)
+                                        </Text>
+                                    </View>
+                                    <View style={styles.mixedRateItem}>
+                                        <Text style={[styles.mixedRateAmount, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                            • {bill.mixedRates.newAmount.toFixed(2)} {trip.targetCurrency.code}
+                                        </Text>
+                                        <Text style={[styles.mixedRateDetail, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                            @ Rate: {bill.mixedRates.newRate} (New)
+                                        </Text>
+                                    </View>
+                                </View>
+                            </>
+                        ) : (
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Exchange Rate Used:</Text>
+                                <Text style={styles.summaryValue}>
+                                    1 {trip.baseCurrency.code} = {bill.customExchangeRate || (paymentMethod === 'card' ? trip.cardExchangeRate : trip.cashExchangeRate)} {trip.targetCurrency.code}
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {/* Individual Splits */}
@@ -346,8 +398,7 @@ export default function BillSummaryScreen() {
                                 <View key={payment.travelerId} style={[
                                     styles.paymentCard,
                                     {
-                                        backgroundColor: Colors[colorScheme ?? 'light'].card,
-                                        shadowColor: Colors[colorScheme ?? 'light'].text,
+                                        backgroundColor: Colors[colorScheme ?? 'light'].background,
                                         borderLeftColor: Colors[colorScheme ?? 'light'].primary,
                                     }
                                 ]}>
@@ -357,7 +408,6 @@ export default function BillSummaryScreen() {
                                                 styles.personIcon,
                                                 {
                                                     backgroundColor: '#FF6B6B20',
-                                                    shadowColor: Colors[colorScheme ?? 'light'].text,
                                                 }
                                             ]}>
                                                 <FontAwesome name="user" size={16} color="#FF6B6B" />
@@ -377,7 +427,6 @@ export default function BillSummaryScreen() {
                                                 styles.personIcon,
                                                 {
                                                     backgroundColor: '#4CAF5020',
-                                                    shadowColor: Colors[colorScheme ?? 'light'].text,
                                                 }
                                             ]}>
                                                 <FontAwesome name="user" size={16} color="#4CAF50" />
@@ -388,13 +437,7 @@ export default function BillSummaryScreen() {
                                         </View>
                                     </View>
 
-                                    <View style={[
-                                        styles.amountSection,
-                                        {
-                                            backgroundColor: Colors[colorScheme ?? 'light'].surface,
-                                            borderColor: Colors[colorScheme ?? 'light'].text + '20',
-                                        }
-                                    ]}>
+                                    <View style={styles.amountSection}>
                                         <View style={styles.primaryAmount}>
                                             <FontAwesome name="money" size={16} color="#FF9500" />
                                             <Text style={[styles.paymentAmount, { color: Colors[colorScheme ?? 'light'].text }]}>
@@ -545,6 +588,24 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 16,
     },
+    billMetaBadges: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 16,
+    },
+    metaBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    metaBadgeText: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
     sectionHeaderWithIcon: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -571,6 +632,40 @@ const styles = StyleSheet.create({
     summaryValue: {
         fontSize: 16,
         fontWeight: '600',
+    },
+    customRateNote: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#34C759',
+        fontStyle: 'italic',
+    },
+    defaultRateText: {
+        fontSize: 14,
+    },
+    mixedRatesBreakdown: {
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    mixedRatesTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    mixedRateItem: {
+        marginBottom: 4,
+    },
+    mixedRateAmount: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    mixedRateDetail: {
+        fontSize: 12,
+        marginLeft: 12,
     },
     totalRow: {
         borderTopWidth: 1,
@@ -667,10 +762,8 @@ const styles = StyleSheet.create({
         padding: 16,
         marginBottom: 12,
         borderLeftWidth: 4,
-        elevation: 2,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 3,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
     },
     paymentHeader: {
         flexDirection: 'row',
@@ -700,10 +793,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 8,
-        elevation: 1,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 2,
     },
     debtorName: {
         fontSize: 16,
@@ -721,8 +810,9 @@ const styles = StyleSheet.create({
     amountSection: {
         borderRadius: 8,
         padding: 12,
-        marginBottom: 12,
+        marginTop: 8,
         borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
     primaryAmount: {
         flexDirection: 'row',

@@ -22,6 +22,7 @@ import Calculator from '@/ui/components/Calculator';
 import BillSplitSummary from '@/ui/components/BillSplitSummary';
 import { BILL_CATEGORIES } from '@/constants/BillCategories';
 import { StorageManager } from '@/utils/StorageManager';
+import { useNotification } from '@/components/providers/NotificationProvider';
 
 export default function TripDashboardScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
@@ -29,6 +30,12 @@ export default function TripDashboardScreen() {
     const [calculatorVisible, setCalculatorVisible] = useState(false);
     const [activeTab, setActiveTab] = useState<'bills' | 'summary'>('bills');
     const [summaryDate, setSummaryDate] = useState<Date | null>(new Date());
+    const [showExchangeRateModal, setShowExchangeRateModal] = useState(false);
+    const [newCardExchangeRate, setNewCardExchangeRate] = useState('');
+    const [newCashExchangeRate, setNewCashExchangeRate] = useState('');
+    const [showTopUpModal, setShowTopUpModal] = useState(false);
+    const [topUpAmount, setTopUpAmount] = useState('');
+    const [topUpRate, setTopUpRate] = useState('');
 
     // Animation values
     const slideAnimation = useRef(new Animated.Value(0)).current;
@@ -48,6 +55,7 @@ export default function TripDashboardScreen() {
     const [isSelectingStartDate, setIsSelectingStartDate] = useState(true);
     const colorScheme = useColorScheme();
     const navigation = useNavigation();
+    const { showError, showSuccess } = useNotification();
 
     useEffect(() => {
         loadTrip();
@@ -159,6 +167,95 @@ export default function TripDashboardScreen() {
 
     const handleCloseCalculator = () => {
         setCalculatorVisible(false);
+    };
+
+    const openExchangeRateModal = () => {
+        if (trip) {
+            setNewCardExchangeRate((trip.cardExchangeRate || 0).toString());
+            setNewCashExchangeRate((trip.cashExchangeRate || 0).toString());
+            setShowExchangeRateModal(true);
+        }
+    };
+
+    const updateExchangeRate = async () => {
+        const cardRate = parseFloat(newCardExchangeRate) || 0;
+        const cashRate = parseFloat(newCashExchangeRate) || 0;
+
+        // Validate that at least one rate is set
+        if (cardRate <= 0 && cashRate <= 0) {
+            showError('Please enter at least one exchange rate (Card or Cash)');
+            return;
+        }
+
+        // Validate card rate if provided
+        if (newCardExchangeRate && (isNaN(cardRate) || cardRate < 0)) {
+            showError('Please enter a valid card exchange rate');
+            return;
+        }
+
+        // Validate cash rate if provided
+        if (newCashExchangeRate && (isNaN(cashRate) || cashRate < 0)) {
+            showError('Please enter a valid cash exchange rate');
+            return;
+        }
+
+        try {
+            const trips = await StorageManager.loadTrips();
+            const tripIndex = trips.findIndex(t => t.id === tripId);
+
+            if (tripIndex !== -1) {
+                trips[tripIndex].cardExchangeRate = cardRate;
+                trips[tripIndex].cashExchangeRate = cashRate;
+                trips[tripIndex].exchangeRate = cardRate > 0 ? cardRate : cashRate; // For backward compatibility
+                await StorageManager.saveTrips(trips);
+                await loadTrip();
+                setShowExchangeRateModal(false);
+                showSuccess('Exchange rates updated successfully!');
+            }
+        } catch (error) {
+            console.error('Error updating exchange rate:', error);
+            showError('Failed to update exchange rates');
+        }
+    };
+
+    const openTopUpModal = () => {
+        if (trip && trip.cardExchangeRate > 0) {
+            setTopUpRate(trip.cardExchangeRate.toString());
+            setTopUpAmount('');
+            setShowTopUpModal(true);
+        }
+    };
+
+    const handleCardTopUp = async () => {
+        const amount = parseFloat(topUpAmount);
+        const rate = parseFloat(topUpRate);
+
+        if (!amount || isNaN(amount) || amount <= 0) {
+            showError('Please enter a valid top-up amount');
+            return;
+        }
+
+        if (!rate || isNaN(rate) || rate <= 0) {
+            showError('Please enter a valid exchange rate');
+            return;
+        }
+
+        try {
+            const trips = await StorageManager.loadTrips();
+            const tripIndex = trips.findIndex(t => t.id === tripId);
+
+            if (tripIndex !== -1) {
+                trips[tripIndex].cardExchangeRate = rate; // Update current rate
+
+                await StorageManager.saveTrips(trips);
+                await loadTrip();
+                setShowTopUpModal(false);
+                showSuccess(`Updated exchange rate to ${rate}`);
+            }
+        } catch (error) {
+            console.error('Error updating exchange rate:', error);
+            showError('Failed to update exchange rate');
+        }
     };
 
     // Filter and search logic
@@ -319,6 +416,8 @@ export default function TripDashboardScreen() {
 
     const renderBillCard = ({ item }: { item: Bill }) => {
         const totalOwed = item.splits.reduce((sum, split) => sum + split.amount, 0);
+        const usedCustomRate = item.customExchangeRate && item.customExchangeRate !== trip?.exchangeRate;
+        const paymentMethod = item.paymentMethod || 'card'; // Default to card for backward compatibility
 
         return (
             <TouchableOpacity
@@ -336,6 +435,25 @@ export default function TripDashboardScreen() {
                         <Text style={styles.billDescription}>{item.description}</Text>
                     </View>
                     <Text style={styles.billCategory}>{item.category.name}</Text>
+
+                    {/* Payment Method and Exchange Rate Badges */}
+                    <View style={styles.billBadges}>
+                        <View style={[styles.badge, {
+                            backgroundColor: paymentMethod === 'cash' ? '#FF950020' : '#007AFF20'
+                        }]}>
+                            <FontAwesome
+                                name={paymentMethod === 'cash' ? 'money' : 'credit-card'}
+                                size={10}
+                                color={paymentMethod === 'cash' ? '#FF9500' : '#007AFF'}
+                            />
+                            <Text style={[styles.badgeText, {
+                                color: paymentMethod === 'cash' ? '#FF9500' : '#007AFF'
+                            }]}>
+                                {paymentMethod === 'cash' ? 'Cash' : 'Card'}
+                            </Text>
+                        </View>
+                    </View>
+
                     <Text style={styles.billAmount}>
                         Total: {trip?.targetCurrency.symbol}{item.totalAmount.toFixed(2)}
                     </Text>
@@ -366,14 +484,49 @@ export default function TripDashboardScreen() {
         <ScreenTransition animationType="slide" duration={300}>
             <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
                 <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-                    <View>
+                    <View style={{ flex: 1 }}>
                         <Text style={styles.tripName}>{trip.name}</Text>
                         <Text style={styles.tripInfo}>
                             {trip.travelers.length} travelers • {trip.baseCurrency.code} → {trip.targetCurrency.code}
                         </Text>
-                        <Text style={styles.exchangeRate}>
-                            Rate: 1 {trip.baseCurrency.code} = {trip.exchangeRate} {trip.targetCurrency.code}
-                        </Text>
+                        <View style={styles.exchangeRatesContainer}>
+                            {trip.cardExchangeRate > 0 && (
+                                <>
+                                    <View style={styles.rateRow}>
+                                        <FontAwesome name="credit-card" size={12} color="#007AFF" />
+                                        <Text style={[styles.exchangeRate, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                            Card: 1 {trip.baseCurrency.code} = {trip.cardExchangeRate} {trip.targetCurrency.code}
+                                        </Text>
+                                    </View>
+                                </>
+                            )}
+                            {trip.cashExchangeRate > 0 && (
+                                <View style={styles.rateRow}>
+                                    <FontAwesome name="money" size={12} color="#FF9500" />
+                                    <Text style={[styles.exchangeRate, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                        Cash: 1 {trip.baseCurrency.code} = {trip.cashExchangeRate} {trip.targetCurrency.code}
+                                    </Text>
+                                </View>
+                            )}
+                            <View style={styles.rateActions}>
+                                {trip.cardExchangeRate > 0 && (
+                                    <TouchableOpacity
+                                        onPress={openTopUpModal}
+                                        style={styles.topUpButton}
+                                    >
+                                        <FontAwesome name="plus-circle" size={14} color="#34C759" />
+                                        <Text style={styles.topUpText}>Top Up Card</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity
+                                    onPress={openExchangeRateModal}
+                                    style={styles.editRateButton}
+                                >
+                                    <FontAwesome name="edit" size={14} color="#007AFF" />
+                                    <Text style={styles.editRateText}>Edit Rates</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </View>
                 </View>
 
@@ -803,6 +956,176 @@ export default function TripDashboardScreen() {
                     exchangeRate={trip.exchangeRate}
                 />
             )}
+
+            {/* Card Top-Up Modal */}
+            <Modal visible={showTopUpModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                        <View style={[styles.modalHeader, { borderBottomColor: Colors[colorScheme ?? 'light'].text + '20' }]}>
+                            <Text style={[styles.modalTitle, { color: Colors[colorScheme ?? 'light'].text }]}>Top Up Card Balance</Text>
+                            <TouchableOpacity onPress={() => setShowTopUpModal(false)}>
+                                <FontAwesome name="times" size={20} color={Colors[colorScheme ?? 'light'].text + '60'} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalBody}>
+                            <Text style={[styles.exchangeRateModalHelp, { color: Colors[colorScheme ?? 'light'].text + '80', marginBottom: 16 }]}>
+                                Add more balance to your card at the current or new exchange rate.
+                            </Text>
+
+                            <Text style={[styles.exchangeRateModalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                Top-Up Amount ({trip?.targetCurrency.code})
+                            </Text>
+                            <TextInput
+                                style={[styles.exchangeRateInput, {
+                                    color: Colors[colorScheme ?? 'light'].text,
+                                    borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                    backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7'
+                                }]}
+                                placeholder="e.g., 15000"
+                                placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                value={topUpAmount}
+                                onChangeText={setTopUpAmount}
+                                keyboardType="numeric"
+                                autoFocus
+                            />
+
+                            <Text style={[styles.exchangeRateModalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                Exchange Rate for This Top-Up
+                            </Text>
+                            <Text style={[styles.exchangeRateModalHelp, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                1 {trip?.baseCurrency.code} = ? {trip?.targetCurrency.code}
+                            </Text>
+                            <TextInput
+                                style={[styles.exchangeRateInput, {
+                                    color: Colors[colorScheme ?? 'light'].text,
+                                    borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                    backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7'
+                                }]}
+                                placeholder={trip?.cardExchangeRate.toString()}
+                                placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                value={topUpRate}
+                                onChangeText={setTopUpRate}
+                                keyboardType="numeric"
+                            />
+
+                            <Text style={[styles.exchangeRateModalNote, { color: Colors[colorScheme ?? 'light'].text + '60' }]}>
+                                Note: This will add a new balance entry. When creating bills, you can use mixed rates if needed.
+                            </Text>
+                        </View>
+
+                        <View style={[styles.modalFooter, { borderTopColor: Colors[colorScheme ?? 'light'].text + '20' }]}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton, {
+                                    backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7',
+                                    borderColor: Colors[colorScheme ?? 'light'].text + '20'
+                                }]}
+                                onPress={() => setShowTopUpModal(false)}
+                            >
+                                <Text style={[styles.cancelButtonText, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.updateButton, { backgroundColor: '#34C759' }]}
+                                onPress={handleCardTopUp}
+                            >
+                                <Text style={styles.updateButtonText}>Add Balance</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Exchange Rate Update Modal */}
+            <Modal visible={showExchangeRateModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                        <View style={[styles.modalHeader, { borderBottomColor: Colors[colorScheme ?? 'light'].text + '20' }]}>
+                            <Text style={[styles.modalTitle, { color: Colors[colorScheme ?? 'light'].text }]}>Update Exchange Rates</Text>
+                            <TouchableOpacity onPress={() => setShowExchangeRateModal(false)}>
+                                <FontAwesome name="times" size={20} color={Colors[colorScheme ?? 'light'].text + '60'} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalBody}>
+                            <Text style={[styles.exchangeRateModalHelp, { color: Colors[colorScheme ?? 'light'].text + '80', marginBottom: 16 }]}>
+                                Set exchange rates for payment methods you'll use. Leave as 0 to disable that payment method.
+                            </Text>
+
+                            {/* Card Rate */}
+                            <View style={styles.rateInputSection}>
+                                <View style={styles.rateInputHeader}>
+                                    <FontAwesome name="credit-card" size={16} color="#007AFF" />
+                                    <Text style={[styles.exchangeRateModalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                        Card Payment Rate
+                                    </Text>
+                                </View>
+                                <Text style={[styles.exchangeRateModalHelp, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                    1 {trip?.baseCurrency.code} = ? {trip?.targetCurrency.code}
+                                </Text>
+                                <TextInput
+                                    style={[styles.exchangeRateInput, {
+                                        color: Colors[colorScheme ?? 'light'].text,
+                                        borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                        backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7'
+                                    }]}
+                                    placeholder="e.g., 331.65 (0 to disable)"
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={newCardExchangeRate}
+                                    onChangeText={setNewCardExchangeRate}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            {/* Cash Rate */}
+                            <View style={styles.rateInputSection}>
+                                <View style={styles.rateInputHeader}>
+                                    <FontAwesome name="money" size={16} color="#FF9500" />
+                                    <Text style={[styles.exchangeRateModalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                        Cash Payment Rate
+                                    </Text>
+                                </View>
+                                <Text style={[styles.exchangeRateModalHelp, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                    1 {trip?.baseCurrency.code} = ? {trip?.targetCurrency.code}
+                                </Text>
+                                <TextInput
+                                    style={[styles.exchangeRateInput, {
+                                        color: Colors[colorScheme ?? 'light'].text,
+                                        borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                        backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7'
+                                    }]}
+                                    placeholder="e.g., 325.00 (0 to disable)"
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={newCashExchangeRate}
+                                    onChangeText={setNewCashExchangeRate}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            <Text style={[styles.exchangeRateModalNote, { color: Colors[colorScheme ?? 'light'].text + '60' }]}>
+                                Note: Existing bills will keep their original rates. Only new bills will use the updated rates.
+                            </Text>
+                        </ScrollView>
+
+                        <View style={[styles.modalFooter, { borderTopColor: Colors[colorScheme ?? 'light'].text + '20' }]}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton, {
+                                    backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7',
+                                    borderColor: Colors[colorScheme ?? 'light'].text + '20'
+                                }]}
+                                onPress={() => setShowExchangeRateModal(false)}
+                            >
+                                <Text style={[styles.cancelButtonText, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.updateButton, { backgroundColor: '#007AFF' }]}
+                                onPress={updateExchangeRate}
+                            >
+                                <Text style={styles.updateButtonText}>Update Rates</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ScreenTransition>
     );
 }
@@ -834,9 +1157,50 @@ const styles = StyleSheet.create({
         color: '#666',
         marginBottom: 4,
     },
+    exchangeRatesContainer: {
+        marginTop: 4,
+        gap: 4,
+    },
+    rateRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
     exchangeRate: {
-        fontSize: 14,
-        color: '#888',
+        fontSize: 12,
+    },
+    editRateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 4,
+        padding: 4,
+    },
+    editRateText: {
+        fontSize: 12,
+        color: '#007AFF',
+        fontWeight: '500',
+    },
+    balanceText: {
+        fontSize: 11,
+        fontStyle: 'italic',
+    },
+    rateActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 6,
+    },
+    topUpButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        padding: 4,
+    },
+    topUpText: {
+        fontSize: 12,
+        color: '#34C759',
+        fontWeight: '500',
     },
     // Tab Navigation Styles
     tabContainer: {
@@ -949,6 +1313,24 @@ const styles = StyleSheet.create({
     billDate: {
         fontSize: 12,
         color: '#888',
+    },
+    billBadges: {
+        flexDirection: 'row',
+        gap: 6,
+        marginTop: 6,
+        marginBottom: 6,
+    },
+    badge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    badgeText: {
+        fontSize: 11,
+        fontWeight: '600',
     },
     emptyState: {
         flex: 1,
@@ -1233,5 +1615,51 @@ const styles = StyleSheet.create({
     pickerItemText: {
         fontSize: 16,
         textAlign: 'center',
+    },
+    // Exchange Rate Modal Styles
+    exchangeRateModalLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    exchangeRateModalHelp: {
+        fontSize: 14,
+        marginBottom: 12,
+    },
+    exchangeRateInput: {
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        marginBottom: 12,
+    },
+    exchangeRateModalNote: {
+        fontSize: 12,
+        fontStyle: 'italic',
+        lineHeight: 18,
+    },
+    cancelButton: {
+        borderWidth: 1,
+    },
+    cancelButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    updateButton: {
+        backgroundColor: '#007AFF',
+    },
+    updateButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: 'white',
+    },
+    rateInputSection: {
+        marginBottom: 20,
+    },
+    rateInputHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
     },
 });

@@ -6,14 +6,16 @@ import {
     SafeAreaView,
     KeyboardAvoidingView,
     Platform,
+    Modal,
+    Alert,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 
 import { Text, View } from '@/components/Themed';
-import { Trip, Bill, BillSplit, BillCategory, ReceiptPhoto } from '@/types';
+import { Trip, Bill, BillSplit, BillCategory, ReceiptPhoto, MixedRatePayment } from '@/types';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -24,6 +26,7 @@ import { FileSystemStorage } from '@/utils/FileSystemStorage';
 
 export default function CreateBillScreen() {
     const { tripId } = useLocalSearchParams<{ tripId: string }>();
+    const navigation = useNavigation();
     const [trip, setTrip] = useState<Trip | null>(null);
     const [description, setDescription] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<BillCategory>(getDefaultCategory());
@@ -32,12 +35,38 @@ export default function CreateBillScreen() {
     const [additionalCharges, setAdditionalCharges] = useState('');
     const [payerId, setPayerId] = useState('');
     const [travelerAmounts, setTravelerAmounts] = useState<{ [key: string]: string }>({});
+    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
+    const [showMixedRateModal, setShowMixedRateModal] = useState(false);
+    const [useMixedRates, setUseMixedRates] = useState(false);
+    const [newRate, setNewRate] = useState('');
+    const [oldRateAmount, setOldRateAmount] = useState('');
+    const [newRateAmount, setNewRateAmount] = useState('');
     const colorScheme = useColorScheme();
     const { showError, showSuccess, showWarning } = useNotification();
 
     useEffect(() => {
         loadTrip();
     }, [tripId]);
+
+    // Configure header with Mix Rate button (only show for card payments)
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                paymentMethod === 'card' && trip && trip.cardExchangeRate > 0 ? (
+                    <TouchableOpacity
+                        onPress={() => setShowMixedRateModal(true)}
+                        style={{ padding: 8, marginRight: 8 }}
+                    >
+                        <FontAwesome
+                            name="exchange"
+                            size={20}
+                            color={colorScheme === 'dark' ? '#FFFFFF' : '#007AFF'}
+                        />
+                    </TouchableOpacity>
+                ) : null
+            ),
+        });
+    }, [navigation, paymentMethod, trip, colorScheme]);
 
     const loadTrip = async () => {
         try {
@@ -47,6 +76,12 @@ export default function CreateBillScreen() {
                 setTrip(foundTrip);
                 if (foundTrip.travelers.length > 0) {
                     setPayerId(foundTrip.travelers[0].id);
+                }
+                // Set default payment method based on configured rates
+                if (foundTrip.cardExchangeRate > 0) {
+                    setPaymentMethod('card');
+                } else if (foundTrip.cashExchangeRate > 0) {
+                    setPaymentMethod('cash');
                 }
             }
         } catch (error) {
@@ -77,9 +112,53 @@ export default function CreateBillScreen() {
             return;
         }
 
+        // Handle mixed rates validation
+        if (useMixedRates && paymentMethod === 'card') {
+            const oldAmount = parseFloat(oldRateAmount) || 0;
+            const newAmount = parseFloat(newRateAmount) || 0;
+            const billTotal = parseFloat(totalAmount);
+            const newRateValue = parseFloat(newRate) || 0;
+
+            if (oldAmount <= 0 && newAmount <= 0) {
+                showError('Please enter amounts for mixed rate payment');
+                return;
+            }
+
+            if (newRateValue <= 0) {
+                showError('Please enter a valid new exchange rate');
+                return;
+            }
+
+            if (Math.abs((oldAmount + newAmount) - billTotal) > 0.01) {
+                showError('Mixed rate amounts must equal the bill total');
+                return;
+            }
+        }
+
+        // Determine which exchange rate to use based on payment method
+        const effectiveExchangeRate = paymentMethod === 'card' ? trip!.cardExchangeRate : trip!.cashExchangeRate;
+        
+        if (!useMixedRates && (!effectiveExchangeRate || effectiveExchangeRate <= 0)) {
+            showError(`No exchange rate configured for ${paymentMethod} payments`);
+            return;
+        }
+
         // Validate individual amounts
         const splits: BillSplit[] = [];
         let totalSplitAmount = 0;
+
+        // Calculate weighted average rate for mixed payments
+        let weightedRate = effectiveExchangeRate;
+        if (useMixedRates && paymentMethod === 'card') {
+            const oldAmount = parseFloat(oldRateAmount) || 0;
+            const newAmount = parseFloat(newRateAmount) || 0;
+            const totalMixed = oldAmount + newAmount;
+            const oldRate = trip!.cardExchangeRate; // Use the default card rate as old rate
+            const newRateValue = parseFloat(newRate) || 0;
+            
+            // Calculate weighted average rate for MYR conversion
+            weightedRate = (oldAmount * oldRate + newAmount * newRateValue) / totalMixed;
+        }
 
         for (const traveler of trip!.travelers) {
             const amountStr = travelerAmounts[traveler.id] || '0';
@@ -91,7 +170,7 @@ export default function CreateBillScreen() {
             }
 
             if (amount > 0) {
-                const amountMYR = amount / trip!.exchangeRate;
+                const amountMYR = amount / weightedRate;
                 splits.push({
                     travelerId: traveler.id,
                     amount,
@@ -129,8 +208,22 @@ export default function CreateBillScreen() {
                 const updatedSplits = splits.map(split => ({
                     ...split,
                     amount: split.amount + chargesPerPerson,
-                    amountMYR: (split.amount + chargesPerPerson) / trip!.exchangeRate
+                    amountMYR: (split.amount + chargesPerPerson) / weightedRate
                 }));
+
+                // Prepare mixed rates data if applicable
+                let mixedRatesData = undefined;
+                if (useMixedRates && paymentMethod === 'card') {
+                    const oldAmount = parseFloat(oldRateAmount) || 0;
+                    const newAmount = parseFloat(newRateAmount) || 0;
+                    const newRateValue = parseFloat(newRate) || 0;
+                    mixedRatesData = {
+                        oldRate: trip!.cardExchangeRate,
+                        oldAmount,
+                        newRate: newRateValue,
+                        newAmount
+                    };
+                }
 
                 const newBill: Bill = {
                     id: newBillId,
@@ -141,6 +234,9 @@ export default function CreateBillScreen() {
                     additionalCharges: additionalChargesValue > 0 ? additionalChargesValue : undefined,
                     payerId,
                     splits: updatedSplits,
+                    paymentMethod,
+                    customExchangeRate: useMixedRates ? undefined : effectiveExchangeRate, // Store single rate if not mixed
+                    mixedRates: mixedRatesData, // Store mixed rates if applicable
                     createdAt: new Date(),
                 };
 
@@ -277,6 +373,67 @@ export default function CreateBillScreen() {
                         />
                     </View>
 
+                    {/* Only show payment method section if rates are configured */}
+                    {(trip.cardExchangeRate > 0 || trip.cashExchangeRate > 0) && (
+                        <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                            <Text style={styles.sectionTitle}>Payment Method</Text>
+                            
+                            <View style={styles.paymentMethodContainer}>
+                                {trip.cardExchangeRate > 0 && (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.paymentMethodButton,
+                                            paymentMethod === 'card' && styles.paymentMethodButtonActive,
+                                            { borderColor: Colors[colorScheme ?? 'light'].text + '40' },
+                                            trip.cashExchangeRate <= 0 && { flex: 1 }
+                                        ]}
+                                        onPress={() => setPaymentMethod('card')}
+                                    >
+                                        <FontAwesome 
+                                            name="credit-card" 
+                                            size={20} 
+                                            color={paymentMethod === 'card' ? '#007AFF' : '#666'} 
+                                        />
+                                        <Text style={[
+                                            styles.paymentMethodText,
+                                            paymentMethod === 'card' && styles.paymentMethodTextActive,
+                                            { color: paymentMethod === 'card' ? '#007AFF' : Colors[colorScheme ?? 'light'].text }
+                                        ]}>Card</Text>
+                                        <Text style={[styles.ratePreview, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                            {trip.cardExchangeRate} {trip.targetCurrency.code}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                {trip.cashExchangeRate > 0 && (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.paymentMethodButton,
+                                            paymentMethod === 'cash' && styles.paymentMethodButtonActive,
+                                            { borderColor: Colors[colorScheme ?? 'light'].text + '40' },
+                                            trip.cardExchangeRate <= 0 && { flex: 1 }
+                                        ]}
+                                        onPress={() => setPaymentMethod('cash')}
+                                    >
+                                        <FontAwesome 
+                                            name="money" 
+                                            size={20} 
+                                            color={paymentMethod === 'cash' ? '#FF9500' : '#666'} 
+                                        />
+                                        <Text style={[
+                                            styles.paymentMethodText,
+                                            paymentMethod === 'cash' && styles.paymentMethodTextActive,
+                                            { color: paymentMethod === 'cash' ? '#FF9500' : Colors[colorScheme ?? 'light'].text }
+                                        ]}>Cash</Text>
+                                        <Text style={[styles.ratePreview, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                            {trip.cashExchangeRate} {trip.targetCurrency.code}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+                    )}
+
                     <View style={[styles.section, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
                         <Text style={styles.sectionTitle}>Who Paid?</Text>
                         {trip.travelers.map((traveler) => (
@@ -319,7 +476,8 @@ export default function CreateBillScreen() {
 
                         {trip.travelers.map((traveler) => {
                             const amount = travelerAmounts[traveler.id] || '';
-                            const amountMYR = amount ? (parseFloat(amount) / trip.exchangeRate).toFixed(3) : '0.000';
+                            const effectiveRate = paymentMethod === 'card' ? trip.cardExchangeRate : trip.cashExchangeRate;
+                            const amountMYR = amount && effectiveRate > 0 ? (parseFloat(amount) / effectiveRate).toFixed(3) : '0.000';
 
                             return (
                                 <View key={traveler.id} style={styles.travelerAmountContainer}>
@@ -359,6 +517,130 @@ export default function CreateBillScreen() {
                     </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Mixed Rate Modal */}
+            <Modal
+                visible={showMixedRateModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowMixedRateModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+                        {!useMixedRates ? (
+                            <>
+                                <Text style={[styles.modalTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                    Use Mixed Exchange Rate?
+                                </Text>
+                                <Text style={[styles.modalDescription, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                    This allows you to split the payment between the old rate ({trip?.cardExchangeRate}) and a new exchange rate.
+                                </Text>
+                                <View style={styles.modalButtons}>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, styles.modalButtonCancel]}
+                                        onPress={() => setShowMixedRateModal(false)}
+                                    >
+                                        <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, styles.modalButtonConfirm]}
+                                        onPress={() => setUseMixedRates(true)}
+                                    >
+                                        <Text style={styles.modalButtonTextConfirm}>Continue</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={[styles.modalTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                    Mixed Rate Payment
+                                </Text>
+                                <Text style={[styles.modalDescription, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
+                                    Enter the new exchange rate and amounts to pay with each rate.
+                                </Text>
+
+                                <Text style={[styles.modalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                    New Exchange Rate (1 MYR = ? {trip?.targetCurrency.code})
+                                </Text>
+                                <TextInput
+                                    style={[
+                                        styles.modalInput,
+                                        {
+                                            color: Colors[colorScheme ?? 'light'].text,
+                                            borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                            backgroundColor: Colors[colorScheme ?? 'light'].background
+                                        }
+                                    ]}
+                                    placeholder="e.g., 5.50"
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={newRate}
+                                    onChangeText={setNewRate}
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={[styles.modalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                    Amount with Old Rate ({trip?.cardExchangeRate})
+                                </Text>
+                                <TextInput
+                                    style={[
+                                        styles.modalInput,
+                                        {
+                                            color: Colors[colorScheme ?? 'light'].text,
+                                            borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                            backgroundColor: Colors[colorScheme ?? 'light'].background
+                                        }
+                                    ]}
+                                    placeholder="0.00"
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={oldRateAmount}
+                                    onChangeText={setOldRateAmount}
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={[styles.modalLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+                                    Amount with New Rate
+                                </Text>
+                                <TextInput
+                                    style={[
+                                        styles.modalInput,
+                                        {
+                                            color: Colors[colorScheme ?? 'light'].text,
+                                            borderColor: Colors[colorScheme ?? 'light'].text + '40',
+                                            backgroundColor: Colors[colorScheme ?? 'light'].background
+                                        }
+                                    ]}
+                                    placeholder="0.00"
+                                    placeholderTextColor={Colors[colorScheme ?? 'light'].text + '60'}
+                                    value={newRateAmount}
+                                    onChangeText={setNewRateAmount}
+                                    keyboardType="numeric"
+                                />
+
+                                <View style={styles.modalButtons}>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, styles.modalButtonCancel]}
+                                        onPress={() => {
+                                            setUseMixedRates(false);
+                                            setNewRate('');
+                                            setOldRateAmount('');
+                                            setNewRateAmount('');
+                                            setShowMixedRateModal(false);
+                                        }}
+                                    >
+                                        <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, styles.modalButtonConfirm]}
+                                        onPress={() => setShowMixedRateModal(false)}
+                                    >
+                                        <Text style={styles.modalButtonTextConfirm}>Confirm</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -493,5 +775,196 @@ const styles = StyleSheet.create({
     chargesSubtitle: {
         fontSize: 12,
         marginBottom: 8,
+    },
+    paymentMethodContainer: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    paymentMethodButton: {
+        flex: 1,
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        borderWidth: 2,
+        backgroundColor: 'transparent',
+    },
+    paymentMethodButtonActive: {
+        borderColor: '#007AFF',
+        backgroundColor: '#007AFF10',
+    },
+    paymentMethodText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    paymentMethodTextActive: {
+    },
+    ratePreview: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    exchangeRateInfo: {
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    exchangeRateLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    customRateToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        marginBottom: 16,
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        borderWidth: 2,
+        marginRight: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: '#007AFF',
+        borderColor: '#007AFF',
+    },
+    customRateToggleText: {
+        fontSize: 16,
+    },
+    customRateInput: {
+        marginTop: 8,
+    },
+    exchangeRateHelp: {
+        fontSize: 12,
+        marginTop: -8,
+        marginBottom: 8,
+    },
+    sectionDescription: {
+        fontSize: 14,
+        marginBottom: 16,
+        lineHeight: 20,
+    },
+    balancesSummary: {
+        marginBottom: 16,
+        gap: 8,
+    },
+    balanceSummaryItem: {
+        padding: 12,
+        borderRadius: 8,
+    },
+    balanceSummaryText: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    balanceSummaryRate: {
+        fontSize: 12,
+    },
+    mixedRateInputs: {
+        marginTop: 16,
+        gap: 16,
+    },
+    mixedRateInputContainer: {
+        marginBottom: 8,
+    },
+    mixedRateHelp: {
+        fontSize: 12,
+        marginBottom: 8,
+    },
+    mixedRateTotalCheck: {
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 8,
+    },
+    mixedRateTotalLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    mixedRateTotalValue: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    mixedRateError: {
+        fontSize: 12,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 16,
+        padding: 24,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 12,
+    },
+    modalDescription: {
+        fontSize: 14,
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    modalLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 8,
+        marginTop: 12,
+    },
+    modalInput: {
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        marginBottom: 12,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginTop: 24,
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    modalButtonCancel: {
+        backgroundColor: '#f0f0f0',
+    },
+    modalButtonConfirm: {
+        backgroundColor: '#007AFF',
+    },
+    modalButtonTextCancel: {
+        color: '#333',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    modalButtonTextConfirm: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

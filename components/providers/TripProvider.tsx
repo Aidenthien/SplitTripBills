@@ -81,7 +81,9 @@ export const TripProvider: React.FC<TripProviderProps> = ({ children }) => {
                 travelers: [],
                 baseCurrency: { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM' },
                 targetCurrency: { code: 'USD', name: 'US Dollar', symbol: '$' },
-                exchangeRate: 1,
+                exchangeRate: 0, // Deprecated, kept for backward compatibility
+                cardExchangeRate: 0,
+                cashExchangeRate: 0,
                 createdAt: new Date(),
                 bills: [],
             };

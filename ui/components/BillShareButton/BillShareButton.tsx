@@ -39,6 +39,9 @@ export default function BillShareButton({
             minute: '2-digit'
         });
 
+        const paymentMethod = bill.paymentMethod || 'card'; // Default to card for backward compatibility
+        const hasMixedRates = bill.mixedRates !== undefined;
+
         let receiptPhotosHTML = '';
         if (base64Images.length > 0) {
             receiptPhotosHTML = `
@@ -173,7 +176,7 @@ export default function BillShareButton({
                     color: #666;
                     font-size: 14px;
                 }
-                .payer-badge { 
+                .payer-badge {
                     background: #4CAF50;
                     color: white;
                     padding: 4px 8px;
@@ -181,7 +184,63 @@ export default function BillShareButton({
                     font-size: 12px;
                     font-weight: bold;
                 }
-                .payment-row { 
+                .payment-method-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 12px;
+                    border-radius: 16px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                }
+                .payment-method-card {
+                    background: #007AFF20;
+                    color: #007AFF;
+                }
+                .payment-method-cash {
+                    background: #FF950020;
+                    color: #FF9500;
+                }
+                .mixed-rate-label {
+                    background: #34C75920;
+                    color: #34C759;
+                    padding: 6px 12px;
+                    border-radius: 16px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    display: inline-block;
+                    margin-bottom: 12px;
+                }
+                .mixed-rates-breakdown {
+                    background: #f8f9fa;
+                    padding: 16px;
+                    border-radius: 8px;
+                    margin-bottom: 12px;
+                    border-left: 4px solid #34C759;
+                }
+                .mixed-rate-title {
+                    font-size: 14px;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                    color: #333;
+                }
+                .mixed-rate-item {
+                    margin-bottom: 8px;
+                    padding-left: 8px;
+                }
+                .mixed-rate-amount {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #333;
+                    margin-bottom: 4px;
+                }
+                .mixed-rate-detail {
+                    font-size: 12px;
+                    color: #666;
+                    padding-left: 12px;
+                }
+                .payment-row {
                     padding: 15px 0;
                     border-bottom: 1px solid #eee;
                 }
@@ -268,6 +327,12 @@ export default function BillShareButton({
 
                 <div class="section">
                     <h3>💰 Bill Details</h3>
+
+                    <!-- Payment Method Badge -->
+                    <div class="payment-method-badge ${paymentMethod === 'card' ? 'payment-method-card' : 'payment-method-cash'}">
+                        ${paymentMethod === 'card' ? '💳 Card Payment' : '💵 Cash Payment'}
+                    </div>
+
                     <div class="detail-row">
                         <span class="detail-label">Base Amount</span>
                         <span class="detail-value">${trip.targetCurrency.symbol}${(bill.totalAmount - (bill.additionalCharges || 0)).toFixed(2)} ${trip.targetCurrency.code}</span>
@@ -284,16 +349,41 @@ export default function BillShareButton({
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Amount (MYR)</span>
-                        <span class="detail-value">RM ${(bill.totalAmount / trip.exchangeRate).toFixed(3)}</span>
+                        <span class="detail-value">RM ${(bill.totalAmount / (bill.customExchangeRate || trip.exchangeRate)).toFixed(2)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Paid by</span>
                         <span class="detail-value">${payer?.name}</span>
                     </div>
+
+                    ${hasMixedRates && bill.mixedRates ? `
+                    <!-- Mixed Rates Section -->
+                    <div style="margin-top: 16px;">
+                        <span class="mixed-rate-label">🔀 Mixed Exchange Rates</span>
+                    </div>
+                    <div class="mixed-rates-breakdown">
+                        <div class="mixed-rate-title">Payment Breakdown:</div>
+                        <div class="mixed-rate-item">
+                            <div class="mixed-rate-amount">• ${bill.mixedRates.oldAmount.toFixed(2)} ${trip.targetCurrency.code}</div>
+                            <div class="mixed-rate-detail">@ Rate: ${bill.mixedRates.oldRate} (Old Rate)</div>
+                            <div class="mixed-rate-detail">= RM ${(bill.mixedRates.oldAmount / bill.mixedRates.oldRate).toFixed(2)}</div>
+                        </div>
+                        <div class="mixed-rate-item">
+                            <div class="mixed-rate-amount">• ${bill.mixedRates.newAmount.toFixed(2)} ${trip.targetCurrency.code}</div>
+                            <div class="mixed-rate-detail">@ Rate: ${bill.mixedRates.newRate} (New Rate)</div>
+                            <div class="mixed-rate-detail">= RM ${(bill.mixedRates.newAmount / bill.mixedRates.newRate).toFixed(2)}</div>
+                        </div>
+                        <div class="mixed-rate-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
+                            <div class="mixed-rate-amount">Weighted Average Rate: ${((bill.mixedRates.oldAmount * bill.mixedRates.oldRate + bill.mixedRates.newAmount * bill.mixedRates.newRate) / (bill.mixedRates.oldAmount + bill.mixedRates.newAmount)).toFixed(4)}</div>
+                        </div>
+                    </div>
+                    ` : `
+                    <!-- Single Exchange Rate -->
                     <div class="detail-row">
                         <span class="detail-label">Exchange Rate</span>
-                        <span class="detail-value">1 ${trip.baseCurrency.code} = ${trip.exchangeRate} ${trip.targetCurrency.code}</span>
+                        <span class="detail-value">1 ${trip.baseCurrency.code} = ${bill.customExchangeRate || (paymentMethod === 'card' ? trip.cardExchangeRate : trip.cashExchangeRate)} ${trip.targetCurrency.code}</span>
                     </div>
+                    `}
                 </div>
 
                 <div class="section">

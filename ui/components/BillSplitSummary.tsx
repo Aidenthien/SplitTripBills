@@ -109,6 +109,14 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
 
         // Process each bill
         dayBills.forEach(bill => {
+            // Determine the effective exchange rate for this bill
+            const effectiveRate = bill.customExchangeRate ||
+                (bill.paymentMethod === 'card' ? trip.cardExchangeRate : trip.cashExchangeRate) ||
+                trip.exchangeRate; // Fallback to deprecated rate for backward compatibility
+
+            // Calculate MYR amount using the correct rate
+            const billAmountMYR = bill.totalAmount / effectiveRate;
+
             // Add to categories
             if (!summary.categories[bill.category.id]) {
                 summary.categories[bill.category.id] = {
@@ -121,12 +129,12 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
                 };
             }
             summary.categories[bill.category.id].totalAmount += bill.totalAmount;
-            summary.categories[bill.category.id].totalAmountMYR += bill.totalAmount / trip.exchangeRate;
+            summary.categories[bill.category.id].totalAmountMYR += billAmountMYR;
             summary.categories[bill.category.id].billCount += 1;
 
             // Add to total
             summary.totalAmount += bill.totalAmount;
-            summary.totalAmountMYR += bill.totalAmount / trip.exchangeRate;
+            summary.totalAmountMYR += billAmountMYR;
 
             // Process splits
             bill.splits.forEach(split => {
@@ -169,14 +177,14 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
         });
 
         // Create a map of who owes who
-        const owesMap: { [key: string]: { [key: string]: number } } = {};
+        const owesMap: { [key: string]: { [key: string]: { amount: number; amountMYR: number } } } = {};
 
         // Initialize the map
         trip.travelers.forEach(traveler => {
             owesMap[traveler.id] = {};
             trip.travelers.forEach(otherTraveler => {
                 if (traveler.id !== otherTraveler.id) {
-                    owesMap[traveler.id][otherTraveler.id] = 0;
+                    owesMap[traveler.id][otherTraveler.id] = { amount: 0, amountMYR: 0 };
                 }
             });
         });
@@ -184,10 +192,18 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
         // Process each bill to calculate who owes who
         dayBills.forEach(bill => {
             const payer = bill.payerId;
+
+            // Determine the effective exchange rate for this bill
+            const effectiveRate = bill.customExchangeRate ||
+                (bill.paymentMethod === 'card' ? trip.cardExchangeRate : trip.cashExchangeRate) ||
+                trip.exchangeRate; // Fallback to deprecated rate for backward compatibility
+
             bill.splits.forEach(split => {
                 if (split.travelerId !== payer) {
                     // This traveler owes the payer
-                    owesMap[split.travelerId][payer] += split.amount;
+                    // Use the pre-calculated amountMYR from the split for accuracy
+                    owesMap[split.travelerId][payer].amount += split.amount;
+                    owesMap[split.travelerId][payer].amountMYR += split.amountMYR;
                 }
             });
         });
@@ -204,8 +220,8 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
 
         Object.keys(owesMap).forEach(debtorId => {
             Object.keys(owesMap[debtorId]).forEach(creditorId => {
-                const amount = owesMap[debtorId][creditorId];
-                if (amount > 0) {
+                const owedData = owesMap[debtorId][creditorId];
+                if (owedData.amount > 0) {
                     const debtor = trip.travelers.find(t => t.id === debtorId);
                     const creditor = trip.travelers.find(t => t.id === creditorId);
                     if (debtor && creditor) {
@@ -214,8 +230,8 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
                             debtorName: debtor.name,
                             creditor: creditorId,
                             creditorName: creditor.name,
-                            amount: amount,
-                            amountMYR: amount / trip.exchangeRate,
+                            amount: owedData.amount,
+                            amountMYR: owedData.amountMYR,
                         });
                     }
                 }
@@ -286,7 +302,7 @@ export default function BillSplitSummary({ trip, selectedDate, onDateChange }: B
                                 {trip.targetCurrency.symbol}{transaction.amount.toFixed(2)}
                             </Text>
                             <Text style={[styles.owedAmountMYR, { color: Colors[colorScheme ?? 'light'].text + '80' }]}>
-                                RM {transaction.amountMYR.toFixed(2)}
+                                RM {transaction.amountMYR.toFixed(3)}
                             </Text>
                         </View>
                     </View>
